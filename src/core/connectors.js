@@ -20,10 +20,10 @@ export class ConnectorRequestError extends Error {
 }
 
 export class LoopbackTextConnector extends TextGenerationConnector {
-  constructor({ baseUrl = "http://127.0.0.1:4317", fetchImpl = globalThis.fetch, timeoutMs = 12_000 } = {}) {
+  constructor({ baseUrl = "http://127.0.0.1:4317", fetchImpl = globalThis.fetch, timeoutMs = 35_000 } = {}) {
     super();
     this.baseUrl = baseUrl.replace(/\/$/u, "");
-    this.fetchImpl = fetchImpl;
+    this.fetchImpl = typeof fetchImpl === "function" ? fetchImpl.bind(globalThis) : fetchImpl;
     this.timeoutMs = timeoutMs;
   }
 

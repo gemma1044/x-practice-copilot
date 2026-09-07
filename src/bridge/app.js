@@ -64,7 +64,7 @@ export function createBridgeServer({
   model = "deepseek_v4_flash",
   extensionId = "",
   upstreamFetch = globalThis.fetch,
-  timeoutMs = 10_000
+  timeoutMs = 30_000
 } = {}) {
   const configured = Boolean(apiKey && baseUrl && extensionId);
   return http.createServer(async (request, response) => {

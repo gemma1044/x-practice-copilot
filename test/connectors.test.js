@@ -43,6 +43,17 @@ test("生产文字 connector 只请求本机 bridge", async () => {
   assert.equal("authorization" in requests[0].init.headers, false);
 });
 
+test("生产 connector 调用浏览器原生 fetch 时绑定正确的全局接收者", async () => {
+  let receiver;
+  const browserStyleFetch = function () {
+    receiver = this;
+    return Promise.resolve(new Response(JSON.stringify({ configured: true }), { status: 200 }));
+  };
+  const connector = new LoopbackTextConnector({ fetchImpl: browserStyleFetch });
+  await connector.getStatus();
+  assert.equal(receiver, globalThis);
+});
+
 test("生产文字 connector 将断网与超时归一为可恢复错误", async () => {
   const unavailable = new LoopbackTextConnector({ fetchImpl: async () => { throw new Error("offline"); } });
   await assert.rejects(
