@@ -3,7 +3,7 @@ import path from "node:path";
 
 const outputPath = path.resolve(".env");
 const baseUrl = "https://merouter.play.one2x.ai/v1";
-const extensionId = "gaeoalbbhjgafopidlpofmedaiambnjo";
+const extensionId = "jbfkkddfjkpijkcefflefbaldjojanko";
 
 if (!process.stdin.isTTY) {
   console.error("请在交互式终端运行 npm run setup:key");
