@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "bridge": "node --env-file-if-exists=.env src/bridge/server.js",
+    "setup:key": "node scripts/configure-merouter.js",
     "package:extension": "node scripts/package-extension.js",
     "test": "node --test",
     "test:browser": "node --test test/extension-shell.test.js"
