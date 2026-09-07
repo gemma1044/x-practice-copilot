@@ -1,0 +1,13 @@
+{
+  "name": "x-practice-copilot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "test:browser": "node --test test/extension-shell.test.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

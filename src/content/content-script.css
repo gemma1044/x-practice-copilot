@@ -1,0 +1,25 @@
+.xpc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 2px;
+  padding: 8px 0 0;
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.xpc-action {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: 600 12px/1 system-ui, sans-serif;
+  padding: 7px 10px;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.xpc-action span { margin-right: 5px; color: #f35b2c; }
+.xpc-action:hover { border-color: #f35b2c; background: rgba(243, 91, 44, .09); transform: translateY(-1px); }
+.xpc-action:focus-visible { outline: 2px solid #f35b2c; outline-offset: 2px; }
+.xpc-action[data-loading="true"] { opacity: .55; pointer-events: none; }
