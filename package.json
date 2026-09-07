@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "bridge": "node src/bridge/server.js",
+    "package:extension": "node scripts/package-extension.js",
     "test": "node --test",
     "test:browser": "node --test test/extension-shell.test.js"
   },

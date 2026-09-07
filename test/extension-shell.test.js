@@ -6,7 +6,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
-const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const projectRoot = process.env.XPC_EXTENSION_PATH
+  ? path.resolve(process.env.XPC_EXTENSION_PATH)
+  : path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 async function resolveChromiumExecutable() {
   const preferred = chromium.executablePath();

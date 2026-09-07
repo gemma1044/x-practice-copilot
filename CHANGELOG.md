@@ -2,6 +2,13 @@
 
 本文件是 X Practice Copilot 的唯一实现变更入口；每轮同时登记唯一用户入口与数据通道路标。
 
+## 2026-09-07 · 可安装扩展包与真实 X 匿名核对
+
+- 新增 `npm run package:extension`，输出 `dist/x-practice-copilot-extension/`；只包含 Manifest 与浏览器运行文件，不包含 bridge、测试、文档或密钥。
+- 打包目录已再次通过真实 MV3 Chromium 运行时验收；生产入口和数据通道没有变化。
+- 使用带界面的隔离 Chromium 访问真实 `https://x.com/OpenAI` 返回 200，但匿名用户被登录墙遮挡，页面未渲染 `article[data-testid="tweet"]`，因此不能把这次核对记为真实已登录 X 验收。
+- `demo/` 明确只作为预览；日常使用必须把打包目录加载到用户已登录 X 的 Chrome / Edge。
+
 ## 2026-09-07 · M2–M6 可离线实现收口
 
 - 生产侧栏把现有 `TextGenerationConnector` 的适配器切换为 `LoopbackTextConnector`；评论与灵感仍共用这一条文字能力通道，扩展只访问 `127.0.0.1:4317`。

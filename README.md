@@ -4,6 +4,8 @@
 
 当前阶段：M1 已完成；M2–M3 的本机实现及 M5 的截图管理骨架已具备。扩展可直接以“加载已解压的扩展程序”运行；真实模型、个人飞书和视觉连接器仍需外部配置与验收。
 
+`demo/` 只是交互预览，不是浏览器插件。运行 `npm run package:extension` 后生成的 `dist/x-practice-copilot-extension/` 才是交给 Chrome / Edge“加载已解压的扩展程序”的目录。
+
 - PRD：`docs/prd/index.html`
 - 方案层：`docs/plans/twitter-ai-copilot/solution.md`
 - 实现层：`docs/plans/twitter-ai-copilot/implementation.md`
@@ -22,9 +24,15 @@ python3 -m http.server 4173
 
 ### 加载真实扩展
 
+先生成只包含浏览器运行文件的扩展目录：
+
+```bash
+npm run package:extension
+```
+
 1. 打开 Chrome 的 `chrome://extensions` 或 Edge 的 `edge://extensions`。
 2. 开启“开发者模式”，点击“加载已解压的扩展程序”。
-3. 选择本项目根目录：`/Users/gemma/Projects/x-practice-copilot`。
+3. 选择生成目录：`/Users/gemma/Projects/x-practice-copilot/dist/x-practice-copilot-extension`。
 4. 打开 `https://x.com`，在任一已渲染帖子的操作区点击“AI 评论 / 收为灵感 / 拆解视频”。
 
 扩展不会自动发布评论。真实 AI 未配置时会明确显示未配置；灵感只写入浏览器 `chrome.storage.local`。视频 MVP 只接受用户手动选择的关键截图，不上传视频、不自动抽帧、不录制标签页。修改文件后，在扩展管理页点击“重新加载”再刷新 X 页面。
