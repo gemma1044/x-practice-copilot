@@ -140,4 +140,5 @@ test("MV3 真机壳在十帖、刷新与站内换页后保持单一入口和正�
   await page.reload();
   await page.locator(".xpc-actions").nth(9).waitFor();
   assert.equal(await page.locator(".xpc-actions").count(), 10);
+
 });

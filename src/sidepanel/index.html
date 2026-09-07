@@ -47,6 +47,23 @@
           <label class="single-fill">补充（可选）<textarea id="additional-note"></textarea></label>
         </div>
         <button class="primary" id="save-inspiration">保存灵感</button>
+        <section class="practice-workspace" id="practice-workspace" hidden>
+          <div class="workspace-head"><b>实践与证据</b><span class="status warning" id="practice-status">待验证</span></div>
+          <p class="lede">AI 建议和你的真实记录分开保存；只有你确认的证据才能推进状态。</p>
+          <label>实践假设<textarea id="practice-hypothesis" placeholder="我想验证什么？"></textarea></label>
+          <label>执行步骤<textarea id="practice-steps" placeholder="准备怎样做和记录？"></textarea></label>
+          <label>实际结果（完成后填写）<textarea id="practice-result" placeholder="只填写真实发生的结果"></textarea></label>
+          <button class="text-button wide" id="save-practice">保存实践记录</button>
+          <div class="evidence-form">
+            <label>证据说明<textarea id="evidence-summary" placeholder="截图、日志或结果数字说明"></textarea></label>
+            <label>证据链接（可选）<input id="evidence-url" type="url" placeholder="https://"></label>
+            <label class="confirm-row"><input id="evidence-confirmed" type="checkbox">这是我实际产生并核对过的记录</label>
+            <button class="text-button wide" id="add-evidence">加入证据</button>
+          </div>
+          <div id="evidence-list" class="evidence-list" aria-live="polite"></div>
+          <button class="primary" id="build-evidence-draft" disabled>生成可追溯草稿</button>
+          <textarea id="evidence-draft" class="traceable-draft" aria-label="可追溯草稿" readonly></textarea>
+        </section>
       </section>
 
       <section class="panel" data-panel="video">
@@ -57,6 +74,7 @@
           <span class="upload-icon">↑</span><b>选择关键截图</b><small>PNG / JPG / WEBP · 3–8 张</small>
         </label>
         <div id="file-summary" class="file-summary">尚未选择截图</div>
+        <ol id="file-list" class="file-list" aria-label="关键截图顺序"></ol>
         <button class="primary" id="analyze-video">分析截图</button>
         <div class="notice" id="vision-notice">视觉模型未配置，不会伪造分析结果。</div>
         <div class="output-shell">

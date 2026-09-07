@@ -72,6 +72,15 @@ legend { margin-bottom: 8px; color: #5f5b53; font-size: 11px; font-weight: 750; 
 .draft-actions { display: flex; align-items: center; justify-content: space-between; gap: 7px; }
 .evidence-badge { color: var(--green); font-size: 10px; }
 .text-button, .output-title button { border: 1px solid var(--line); border-radius: 8px; background: var(--card); cursor: pointer; padding: 5px 8px; font-size: 10px; font-weight: 750; }
+.text-button.wide { width: 100%; min-height: 34px; }
+.practice-workspace { margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--line); }
+.workspace-head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
+.evidence-form { margin: 14px 0; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: #faf8f3; }
+.evidence-form input[type="url"] { display: block; width: 100%; margin-top: 6px; border: 1px solid var(--line); border-radius: 9px; padding: 9px; }
+.confirm-row { display: flex; align-items: center; gap: 7px; font-weight: 650; }
+.evidence-list { display: grid; gap: 6px; margin: 10px 0; }
+.evidence-item { border-left: 3px solid var(--green); border-radius: 0 8px 8px 0; background: var(--green-soft); padding: 8px; color: var(--green); font-size: 10px; line-height: 1.45; }
+.traceable-draft { width: 100%; min-height: 84px; margin-top: 10px; border: 1px solid var(--line); border-radius: 11px; background: #f9f7f1; padding: 10px; resize: vertical; font-size: 11px; line-height: 1.5; }
 label { display: block; margin: 13px 0; font-size: 11px; font-weight: 800; }
 label textarea { display: block; width: 100%; min-height: 67px; margin-top: 6px; border: 1px solid var(--line); border-radius: 11px; background: #fff; padding: 10px; resize: vertical; font-size: 12px; line-height: 1.5; outline: none; }
 label textarea:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--orange-soft); }
@@ -80,6 +89,14 @@ label textarea:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--
 .upload-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: var(--orange-soft); color: var(--orange); font-size: 20px; }
 .dropzone small, .output-shell small { color: var(--muted); font-size: 10px; font-weight: 500; }
 .file-summary { margin: -4px 0 12px; color: var(--muted); font-size: 11px; }
+.file-list { display: grid; gap: 7px; margin: 0 0 12px; padding: 0; list-style: none; }
+.file-item { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 7px; background: #fff; }
+.file-item img { width: 48px; height: 42px; border-radius: 7px; object-fit: cover; background: #eee; }
+.file-item span { overflow: hidden; font-size: 10px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.file-actions { display: flex; gap: 3px; }
+.file-actions button { width: 25px; height: 25px; border: 1px solid var(--line); border-radius: 7px; background: var(--card); cursor: pointer; padding: 0; font-size: 11px; }
+.file-actions button:disabled { cursor: default; opacity: .35; }
+.file-item.error { border-color: #bf553d; background: #fff0ec; }
 .output-shell { margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--line); }
 .output-shell textarea { width: 100%; min-height: 190px; margin: 8px 0; border: 1px solid var(--line); border-radius: 11px; background: #f9f7f1; padding: 10px; color: #555149; font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
 .toast { position: fixed; right: 18px; bottom: 18px; left: 18px; z-index: 10; opacity: 0; transform: translateY(8px); border-radius: 11px; background: var(--ink); color: #fff; padding: 10px 12px; pointer-events: none; text-align: center; font-size: 11px; transition: 160ms ease; }

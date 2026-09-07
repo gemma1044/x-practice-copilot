@@ -44,4 +44,28 @@ export class PracticeRepository {
   async listInspirations() {
     throw new Error("PracticeRepository.listInspirations 尚未实现");
   }
+
+  async savePractice(_record) {
+    throw new Error("PracticeRepository.savePractice 尚未实现");
+  }
+
+  async listPractices(_inspirationId) {
+    throw new Error("PracticeRepository.listPractices 尚未实现");
+  }
+
+  async addEvidence(_inspirationId, _evidence) {
+    throw new Error("PracticeRepository.addEvidence 尚未实现");
+  }
+
+  async saveDraft(_record) {
+    throw new Error("PracticeRepository.saveDraft 尚未实现");
+  }
+
+  async listPendingSync() {
+    throw new Error("PracticeRepository.listPendingSync 尚未实现");
+  }
+
+  async markSyncAttempt(_operationId, _result) {
+    throw new Error("PracticeRepository.markSyncAttempt 尚未实现");
+  }
 }

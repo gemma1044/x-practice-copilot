@@ -8,4 +8,6 @@ test("视频 MVP 只暴露截图输入，不承诺视频上传或自动抽帧", 
   assert.match(videoPanel, /image\/png,image\/jpeg,image\/webp/u);
   assert.doesNotMatch(videoPanel, /video\/|MP4|MOV|自动抽帧/u);
   assert.match(videoPanel, /3–8 张/u);
+  assert.match(videoPanel, /关键截图顺序/u);
+  assert.match(videoPanel, /file-list/u);
 });

@@ -9,6 +9,70 @@ export class ConnectorNotConfiguredError extends Error {
   }
 }
 
+export class ConnectorRequestError extends Error {
+  constructor(message, { code = "CONNECTOR_REQUEST_FAILED", status = 0, nextStep = "请确认本机 bridge 已启动后重试。" } = {}) {
+    super(message);
+    this.name = "ConnectorRequestError";
+    this.code = code;
+    this.status = status;
+    this.nextStep = nextStep;
+  }
+}
+
+export class LoopbackTextConnector extends TextGenerationConnector {
+  constructor({ baseUrl = "http://127.0.0.1:4317", fetchImpl = globalThis.fetch, timeoutMs = 12_000 } = {}) {
+    super();
+    this.baseUrl = baseUrl.replace(/\/$/u, "");
+    this.fetchImpl = fetchImpl;
+    this.timeoutMs = timeoutMs;
+  }
+
+  async getStatus() {
+    return this.#request("/health", { method: "GET" });
+  }
+
+  async generateComments(input) {
+    return this.#request("/v1/text/comments", { method: "POST", body: input });
+  }
+
+  async generateInspiration(input) {
+    return this.#request("/v1/text/inspiration", { method: "POST", body: input });
+  }
+
+  async #request(pathname, { method, body } = {}) {
+    if (typeof this.fetchImpl !== "function") {
+      throw new ConnectorRequestError("当前环境不支持请求本机 bridge");
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const response = await this.fetchImpl(`${this.baseUrl}${pathname}`, {
+        method,
+        headers: body ? { "content-type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new ConnectorRequestError(payload.error?.message || `本机 bridge 返回 ${response.status}`, {
+          code: payload.error?.code,
+          status: response.status,
+          nextStep: payload.error?.nextStep
+        });
+      }
+      return payload;
+    } catch (error) {
+      if (error instanceof ConnectorRequestError) throw error;
+      if (error.name === "AbortError") {
+        throw new ConnectorRequestError("文字 AI 请求超时", { code: "BRIDGE_TIMEOUT" });
+      }
+      throw new ConnectorRequestError("无法连接本机文字 AI bridge", { code: "BRIDGE_UNAVAILABLE" });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+}
+
 export class UnconfiguredTextConnector extends TextGenerationConnector {
   getStatus() {
     return {
