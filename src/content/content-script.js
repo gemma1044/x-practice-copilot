@@ -9,20 +9,22 @@
     return String(value || "").replace(/\s+/g, " ").trim();
   }
 
-  function statusUrl(article) {
-    const anchors = [...article.querySelectorAll('a[href*="/status/"]')];
-    const href = anchors.map((anchor) => anchor.getAttribute("href")).find(Boolean);
+  function statusUrl(postRoot) {
+    const anchors = [...postRoot.querySelectorAll('a[href*="/status/"]')];
+    const timestampAnchor = anchors.find((anchor) => anchor.querySelector("time"));
+    const href = timestampAnchor?.getAttribute("href")
+      || anchors.map((anchor) => anchor.getAttribute("href")).find(Boolean);
     return href ? new URL(href, location.origin).href : location.href;
   }
 
-  function extractPost(article) {
-    const userName = article.querySelector('[data-testid="User-Name"]');
+  function extractPost(postRoot, tweetText) {
+    const userName = postRoot.querySelector('[data-testid="User-Name"]');
     const userText = cleanText(userName?.textContent);
     const handle = userText.match(/@[\w_]+/u)?.[0] || "";
     const authorName = cleanText(userText.replace(handle, "").split("·")[0]);
-    const textNodes = [...article.querySelectorAll('[data-testid="tweetText"]')];
-    const text = cleanText(textNodes[0]?.textContent);
-    const url = statusUrl(article);
+    const textNodes = [...postRoot.querySelectorAll('[data-testid="tweetText"]')];
+    const text = cleanText(tweetText?.textContent);
+    const url = statusUrl(postRoot);
 
     return {
       id: url.match(/status\/(\d+)/u)?.[1] || url,
@@ -33,16 +35,32 @@
       capturedAt: new Date().toISOString(),
       contextScope: textNodes.length > 1 ? "当前帖子及可见引用" : "仅当前可见帖子",
       media: {
-        hasVideo: Boolean(article.querySelector("video")),
-        imageCount: article.querySelectorAll('[data-testid="tweetPhoto"] img').length
+        hasVideo: Boolean(postRoot.querySelector("video")),
+        imageCount: postRoot.querySelectorAll('[data-testid="tweetPhoto"] img').length
       }
     };
   }
 
-  function createActions(article) {
-    if (article.querySelector(".xpc-actions")) return;
-    const tweetText = article.querySelector('[data-testid="tweetText"]');
-    if (!tweetText) return;
+  function fallbackPostRoot(tweetText) {
+    let candidate = tweetText.parentElement;
+    for (let depth = 0; candidate && depth < 12; depth += 1) {
+      if (
+        candidate.querySelector('a[href*="/status/"]')
+        && candidate.querySelector('[role="group"]')
+      ) return candidate;
+      candidate = candidate.parentElement;
+    }
+    return null;
+  }
+
+  function resolvePostRoot(tweetText) {
+    return tweetText.closest('[data-testid="tweet"]')
+      || tweetText.closest('[data-testid="cellInnerDiv"]')
+      || fallbackPostRoot(tweetText);
+  }
+
+  function createActions(postRoot, tweetText) {
+    if (postRoot.querySelector(":scope > .xpc-actions, :scope .xpc-actions")) return;
 
     const bar = document.createElement("div");
     bar.className = "xpc-actions";
@@ -64,7 +82,7 @@
           const response = await chrome.runtime.sendMessage({
             type: "XPC_OPEN_PANEL",
             action: action.id,
-            context: extractPost(article)
+            context: extractPost(postRoot, tweetText)
           });
           if (!response?.ok) throw new Error(response?.error || "侧栏未能打开");
         } catch (error) {
@@ -77,13 +95,16 @@
       bar.append(button);
     }
 
-    const socialGroup = article.querySelector('[role="group"]');
-    if (socialGroup?.parentElement) socialGroup.parentElement.append(bar);
+    const socialGroup = postRoot.querySelector('[role="group"]');
+    if (socialGroup) socialGroup.insertAdjacentElement("afterend", bar);
     else tweetText.insertAdjacentElement("afterend", bar);
   }
 
   function scan() {
-    document.querySelectorAll('article[data-testid="tweet"]').forEach(createActions);
+    document.querySelectorAll('[data-testid="tweetText"]').forEach((tweetText) => {
+      const postRoot = resolvePostRoot(tweetText);
+      if (postRoot) createActions(postRoot, tweetText);
+    });
   }
 
   let scheduled = false;

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "X Practice Copilot",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "在 X 帖子旁生成诚实评论、沉淀灵感并准备视频复刻提示词。",
   "permissions": ["storage", "sidePanel"],
   "host_permissions": ["https://x.com/*", "https://twitter.com/*", "http://127.0.0.1:4317/*"],

@@ -43,13 +43,20 @@ async function resolveChromiumExecutable() {
 }
 
 function tweet(index) {
+  const variants = [
+    { tag: "article", testId: "tweet" },
+    { tag: "div", testId: "tweet" },
+    { tag: "div", testId: "cellInnerDiv" }
+  ];
+  const { tag, testId } = variants[(index - 1) % variants.length];
   return `
-    <article data-testid="tweet" data-fixture-index="${index}">
+    <${tag} data-testid="${testId}" data-fixture-index="${index}">
       <div data-testid="User-Name">作者 ${index} @author_${index} · ${index}m</div>
       <div data-testid="tweetText">第 ${index} 条用于扩展真机壳验收的帖子。</div>
-      <a href="/author_${index}/status/${100000 + index}">时间</a>
+      <a href="/quoted/status/${200000 + index}">引用</a>
+      <a href="/author_${index}/status/${100000 + index}"><time>时间</time></a>
       <div role="group"><button data-testid="reply">回复</button></div>
-    </article>`;
+    </${tag}>`;
 }
 
 function fixtureHtml(start = 1) {
@@ -98,21 +105,21 @@ test("MV3 真机壳在十帖、刷新与站内换页后保持单一入口和正�
   const page = await context.newPage();
   await page.goto("https://x.com/home");
   const worker = await waitForWorker(context);
-  const articles = page.locator('article[data-testid="tweet"]');
+  const posts = page.locator("[data-fixture-index]");
 
-  await articles.nth(9).locator(".xpc-actions").waitFor();
-  assert.equal(await articles.count(), 10);
+  await posts.nth(9).locator(".xpc-actions").waitFor();
+  assert.equal(await posts.count(), 10);
   assert.equal(await page.locator(".xpc-actions").count(), 10);
   assert.equal(await page.locator(".xpc-action").count(), 30);
 
   const actions = [
-    { label: "AI 评论", mode: "comment", articleIndex: 1, postIndex: 2 },
-    { label: "收为灵感", mode: "inspiration", articleIndex: 5, postIndex: 6 },
-    { label: "拆解视频", mode: "video", articleIndex: 9, postIndex: 10 }
+    { label: "AI 评论", mode: "comment", rootIndex: 1, postIndex: 2 },
+    { label: "收为灵感", mode: "inspiration", rootIndex: 5, postIndex: 6 },
+    { label: "拆解视频", mode: "video", rootIndex: 9, postIndex: 10 }
   ];
 
   for (const action of actions) {
-    const button = articles.nth(action.articleIndex).getByRole("button", { name: action.label });
+    const button = posts.nth(action.rootIndex).getByRole("button", { name: action.label });
     await button.click();
     const stored = await waitForSelection(worker, action.mode, String(100000 + action.postIndex));
     await page.waitForFunction((node) => !node.dataset.loading, await button.elementHandle());
@@ -124,9 +131,9 @@ test("MV3 真机壳在十帖、刷新与站内换页后保持单一入口和正�
   }
   assert.equal(await page.evaluate(() => globalThis.replyClicks), 0);
 
-  await articles.nth(0).locator('[data-testid="tweetText"]').evaluate((node) => node.append(" 更新"));
+  await posts.nth(0).locator('[data-testid="tweetText"]').evaluate((node) => node.append(" 更新"));
   await page.waitForTimeout(50);
-  assert.equal(await articles.nth(0).locator(".xpc-actions").count(), 1);
+  assert.equal(await posts.nth(0).locator(".xpc-actions").count(), 1);
 
   const replacementFeed = Array.from({ length: 10 }, (_, offset) => tweet(11 + offset)).join("");
   await page.evaluate((html) => {
@@ -135,7 +142,7 @@ test("MV3 真机壳在十帖、刷新与站内换页后保持单一入口和正�
   }, replacementFeed);
   await page.locator(".xpc-actions").nth(9).waitFor();
   assert.equal(await page.locator(".xpc-actions").count(), 10);
-  await page.locator('article[data-fixture-index="20"]').getByRole("button", { name: "AI 评论" }).click();
+  await page.locator('[data-fixture-index="20"]').getByRole("button", { name: "AI 评论" }).click();
   const afterNavigation = await waitForSelection(worker, "comment", "100020");
   assert.equal(afterNavigation.xpc_current_context.url, "https://x.com/author_20/status/100020");
 
