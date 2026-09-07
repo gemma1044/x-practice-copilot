@@ -53,23 +53,20 @@ npm run test:browser
 
 ## 启动本机文字 AI bridge
 
-1. 在扩展管理页读取 X Practice Copilot 的扩展 ID。
-2. 只在启动 bridge 的终端环境中设置以下变量，不要写入项目文件：
+1. 打开项目根目录的 `.env`，只填写 `OPENAI_API_KEY`。该文件已被 Git 忽略；Base URL 和当前打包目录对应的扩展 ID 已预填。
+2. 启动 bridge：
 
 ```bash
-export OPENAI_API_KEY="你的本机密钥"
-export OPENAI_BASE_URL="https://merouter.play.one2x.ai/v1"
-export XPC_EXTENSION_ID="扩展管理页显示的 ID"
 npm run bridge
 ```
 
-bridge 只监听 `127.0.0.1:4317`。启动后重新打开 Side Panel，状态会显示“AI 已连接”；缺少任一变量时只提供健康状态并拒绝模型请求。可用 `XPC_BRIDGE_PORT` 改端口，但同时需要同步修改扩展的 connector 与 host permission，当前不建议改动。
+bridge 只监听 `127.0.0.1:4317`。启动后重新打开 Side Panel，状态会显示“AI 已连接”；缺少任一变量时只提供健康状态并拒绝模型请求。如果扩展不是从 README 所述打包目录加载，请把 `chrome://extensions` 显示的实际扩展 ID 写入 `XPC_EXTENSION_ID`。可用 `XPC_BRIDGE_PORT` 改端口，但同时需要同步修改扩展的 connector 与 host permission，当前不建议改动。
 
 ## 连接器与密钥边界
 
 - 文字能力入口为 `TextGenerationConnector`，目标是由本机安全桥接通过 OpenAI-compatible 接口访问 Merouter `deepseek_v4_flash`。
 - 本机既有约定使用 `OPENAI_API_KEY` 与 `OPENAI_BASE_URL=https://merouter.play.one2x.ai/v1`。真实 key 只能由本机桥接环境读取，不能写入扩展包、源码或提交记录。
-- 本机桥接的具体 HTTP contract 尚未在本项目确认，因此本轮没有臆造地址或伪装调用成功；`UnconfiguredTextConnector` 会稳定返回未配置状态。
+- 本机桥接已提供 `/health`、`/v1/text/comments` 与 `/v1/text/inspiration`；模型返回会经过结构校验，未配置、超时或异常时不会用本地模板伪装成功。
 - 视觉分析使用独立 `VisionAnalysisConnector`，不交给 `deepseek_v4_flash` 假装识图。
 - 业务数据只有 `PracticeRepository` 一个入口。当前为本地开发适配器；个人飞书连接身份未确认前，`UnconfiguredPersonalFeishuRepository` 拒绝远程读写，禁止接入公司租户。
 - 本地状态统一保存在版本化的 `xpc_practice_state`；首次写入会迁移旧 `xpc_inspirations`。同步队列与业务实体同处这一状态，不形成第二条数据通道。

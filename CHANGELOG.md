@@ -2,6 +2,12 @@
 
 本文件是 X Practice Copilot 的唯一实现变更入口；每轮同时登记唯一用户入口与数据通道路标。
 
+## 2026-09-08 · Merouter 本机 Key 配置入口
+
+- 复用既有 `LoopbackTextConnector → 本机 bridge → Merouter` 唯一文字通道，不在扩展侧新增 Key 存储或直连入口。
+- 新增被 Git 忽略的项目根 `.env` 作为唯一 Key 填写位置；`npm run bridge` 自动加载，Base URL 固定为 `https://merouter.play.one2x.ai/v1`，模型继续固定为 `deepseek_v4_flash`。
+- 自动预填当前打包目录对应的扩展 ID，并提供不含密钥的 `.env.example`；Key 缺失、错误或来源不匹配时继续安全失败。
+
 ## 2026-09-07 · 可安装扩展包与真实 X 匿名核对
 
 - 新增 `npm run package:extension`，输出 `dist/x-practice-copilot-extension/`；只包含 Manifest 与浏览器运行文件，不包含 bridge、测试、文档或密钥。
