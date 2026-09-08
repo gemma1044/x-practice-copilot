@@ -76,7 +76,7 @@ test("评论与灵感共用锁定模型的 OpenAI-compatible 上游", async () =
     const comments = await fetch(`${baseUrl}/v1/text/comments`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ sourcePost })
+      body: JSON.stringify({ sourcePost, replyLanguage: "en" })
     }).then((response) => response.json());
     const inspiration = await fetch(`${baseUrl}/v1/text/inspiration`, {
       method: "POST",
@@ -91,6 +91,7 @@ test("评论与灵感共用锁定模型的 OpenAI-compatible 上游", async () =
     assert.ok(requests.every((request) => request.url === "https://upstream.invalid/v1/chat/completions"));
     assert.ok(requests.every((request) => request.authorization === "Bearer test-only-key"));
     assert.ok(requests.every((request) => request.body.model === "deepseek_v4_flash"));
+    assert.match(requests[0].body.messages[0].content, /natural English/u);
   });
 });
 
@@ -103,6 +104,8 @@ test("bridge 拒绝越界来源和不合法模型结构", async () => {
   }, async (baseUrl) => {
     const forbidden = await fetch(`${baseUrl}/health`, { headers: { origin: "https://example.com" } });
     assert.equal(forbidden.status, 403);
+    assert.equal(forbidden.headers.get("access-control-allow-origin"), "https://example.com");
+    assert.equal((await forbidden.json()).error.code, "ORIGIN_FORBIDDEN");
 
     const invalid = await fetch(`${baseUrl}/v1/text/comments`, {
       method: "POST",
@@ -111,6 +114,14 @@ test("bridge 拒绝越界来源和不合法模型结构", async () => {
     });
     assert.equal(invalid.status, 502);
     assert.equal((await invalid.json()).error.code, "INVALID_MODEL_OUTPUT");
+
+    const unsupportedLanguage = await fetch(`${baseUrl}/v1/text/comments`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sourcePost, replyLanguage: "unsupported" })
+    });
+    assert.equal(unsupportedLanguage.status, 400);
+    assert.equal((await unsupportedLanguage.json()).error.code, "UNSUPPORTED_REPLY_LANGUAGE");
   });
 });
 
@@ -132,5 +143,70 @@ test("bridge 将上游超时变成可判定错误", async () => {
     });
     assert.equal(response.status, 504);
     assert.equal((await response.json()).error.code, "UPSTREAM_TIMEOUT");
+  });
+});
+
+test("视频端点复用本机 bridge 且不依赖文字模型配置", async () => {
+  const mediaService = {
+    async getStatus() { return { configured: true, hasYtDlp: true, hasFfmpeg: true, hasFfprobe: true }; },
+    async prepare({ sourceUrl }) {
+      return {
+        taskId: "task-1",
+        sourceUrl,
+        durationSeconds: 12,
+        scenes: [{ id: "scene-1", index: 1, startSeconds: 0, endSeconds: 12, frameTimes: [2, 6, 10] }],
+        contactSheets: [{ id: "sheet-1", sceneIds: ["scene-1"], frameCount: 3, dataUrl: "data:image/jpeg;base64,AA==" }]
+      };
+    }
+  };
+  await withBridge({ extensionId: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", mediaService }, async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/v1/video/frames`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+      body: JSON.stringify({ sourcePost })
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.sourceUrl, sourcePost.url);
+    assert.equal(payload.scenes.length, 1);
+    assert.equal(payload.contactSheets.length, 1);
+  });
+});
+
+test("视觉端点固定使用 Gemini 3.7 Flash 并接收九宫格", async () => {
+  const requests = [];
+  const upstreamFetch = async (_url, init) => {
+    requests.push(JSON.parse(init.body));
+    return upstreamResponse({
+      summary: "人物位置在场景内发生变化。",
+      structure: { hook: "人物开场", progression: "产品展示", ending: "字卡收束", pace: "快切" },
+      scenes: [{ index: 1, timeRange: "0–12s", visibleChange: "远景到近景", visualStyle: "粉色", transition: "硬切" }],
+      medeoPrompt: "生成一条竖屏时尚短片。"
+    });
+  };
+  await withBridge({
+    apiKey: "test-only-key",
+    baseUrl: "https://upstream.invalid/v1",
+    extensionId: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    upstreamFetch
+  }, async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/v1/vision/analyze`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+      body: JSON.stringify({
+        sourcePost,
+        analysisPrompt: "分析镜头并执行替换。",
+        replacementBrief: "把原产品替换成银色耳机。",
+        scenes: [{ id: "scene-1", index: 1, startSeconds: 0, endSeconds: 12, frameTimes: [2, 6, 10] }],
+        contactSheets: [{ id: "sheet-1", sceneIds: ["scene-1"], frameCount: 3, dataUrl: "data:image/jpeg;base64,AA==" }],
+        referenceImages: [{ name: "耳机.png", dataUrl: "data:image/png;base64,AA==" }]
+      })
+    });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).medeoPrompt, "生成一条竖屏时尚短片。");
+    assert.equal(requests[0].model, "gemini-3.7-flash");
+    assert.equal(requests[0].messages[1].content.filter((item) => item.type === "image_url").length, 2);
+    assert.match(requests[0].messages[1].content[0].text, /银色耳机/u);
+    assert.match(requests[0].messages[1].content[0].text, /分析镜头并执行替换/u);
   });
 });

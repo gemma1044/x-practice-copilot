@@ -1,4 +1,4 @@
-import { TextGenerationConnector, VisionAnalysisConnector } from "./contracts.js";
+import { MediaPreparationConnector, TextGenerationConnector, VisionAnalysisConnector } from "./contracts.js";
 
 export class ConnectorNotConfiguredError extends Error {
   constructor(capability, nextStep) {
@@ -98,6 +98,80 @@ export class UnconfiguredTextConnector extends TextGenerationConnector {
   }
 }
 
+export class LoopbackMediaConnector extends MediaPreparationConnector {
+  constructor({ baseUrl = "http://127.0.0.1:4317", fetchImpl = globalThis.fetch, timeoutMs = 130_000 } = {}) {
+    super();
+    this.baseUrl = baseUrl.replace(/\/$/u, "");
+    this.fetchImpl = typeof fetchImpl === "function" ? fetchImpl.bind(globalThis) : fetchImpl;
+    this.timeoutMs = timeoutMs;
+  }
+
+  async getStatus() {
+    const response = await this.fetchImpl(`${this.baseUrl}/health`);
+    if (!response.ok) throw new ConnectorRequestError(`本机 bridge 返回 ${response.status}`, { status: response.status });
+    return (await response.json()).media || { configured: false };
+  }
+
+  async prepareVideo(input) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const response = await this.fetchImpl(`${this.baseUrl}/v1/video/frames`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+        signal: controller.signal
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new ConnectorRequestError(payload.error?.message || `本机 bridge 返回 ${response.status}`, {
+          code: payload.error?.code,
+          status: response.status,
+          nextStep: payload.error?.nextStep || "保留当前帖子，稍后再试。"
+        });
+      }
+      return payload;
+    } catch (error) {
+      if (error instanceof ConnectorRequestError) throw error;
+      if (error.name === "AbortError") {
+        throw new ConnectorRequestError("本机视频处理超时", { code: "MEDIA_TIMEOUT" });
+      }
+      throw new ConnectorRequestError("无法连接本机视频 bridge", { code: "BRIDGE_UNAVAILABLE" });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+export class DemoMediaConnector extends MediaPreparationConnector {
+  getStatus() {
+    return { configured: true, hasYtDlp: true, hasFfmpeg: true, hasFfprobe: true };
+  }
+
+  async prepareVideo({ sourcePost }) {
+    await new Promise((resolve) => setTimeout(resolve, 420));
+    const scenes = Array.from({ length: 6 }, (_, index) => ({
+      id: `scene-${index + 1}`,
+      index: index + 1,
+      startSeconds: index * 5,
+      endSeconds: index * 5 + 5,
+      frameTimes: [index * 5 + 0.83, index * 5 + 2.5, index * 5 + 4.17]
+    }));
+    const colors = ["#171714", "#f35b2c", "#176849", "#4737ad", "#9b5b19", "#2f6f8e", "#bd3e74", "#277b8e", "#8c5d2e"];
+    const contactSheets = [0, 1].map((sheetIndex) => {
+      const cells = colors.map((color, cell) => `<rect x="${(cell % 3) * 220}" y="${Math.floor(cell / 3) * 124}" width="220" height="124" fill="${color}"/><text x="${(cell % 3) * 220 + 12}" y="${Math.floor(cell / 3) * 124 + 28}" fill="white" font-size="16" font-family="sans-serif">场景 ${sheetIndex * 3 + Math.floor(cell / 3) + 1} · ${["早", "中", "晚"][cell % 3]}</text>`).join("");
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="660" height="372">${cells}</svg>`;
+      return {
+        id: `sheet-${sheetIndex + 1}`,
+        sceneIds: scenes.slice(sheetIndex * 3, sheetIndex * 3 + 3).map((scene) => scene.id),
+        frameCount: 9,
+        dataUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+      };
+    });
+    return { taskId: "demo-media-task", sourceUrl: sourcePost.url, durationSeconds: 30, scenes, contactSheets };
+  }
+}
+
 /** 只供本地可交互 Demo 使用，不代表真实模型调用。 */
 export class DemoTextConnector extends TextGenerationConnector {
   getStatus() {
@@ -109,8 +183,15 @@ export class DemoTextConnector extends TextGenerationConnector {
     };
   }
 
-  async generateComments() {
+  async generateComments({ replyLanguage = "zh-CN" } = {}) {
     await new Promise((resolve) => setTimeout(resolve, 240));
+    if (replyLanguage === "en") {
+      return [
+        { title: "观点补充", text: "The most useful signal may not be the time limit itself, but whether the task leaves a result that others can inspect." },
+        { title: "开放提问", text: "If you could keep only one signal, would you choose the final output or the amount of rework revealed along the way?" },
+        { title: "可执行计划", text: "I would compare the same small task across several models and record the output, time spent, and rework before drawing a conclusion." }
+      ];
+    }
     return [
       { title: "观点补充", text: "真正有价值的可能不是 20 分钟这个数字，而是任务有没有留下可复查的产物。" },
       { title: "开放提问", text: "如果只能保留一个判断信号，你会更看重最终输出，还是过程中暴露出的返工点？" },
@@ -142,14 +223,73 @@ export class UnconfiguredVisionConnector extends VisionAnalysisConnector {
     return {
       configured: false,
       provider: null,
-      message: "视觉模型尚未选择；当前不会上传截图或伪造分析结果。"
+      message: "视觉模型尚未选择；当前不会上传代表帧或伪造分析结果。"
     };
   }
 
   async analyzeVideo() {
     throw new ConnectorNotConfiguredError(
       "视频视觉分析",
-      "先配置独立视觉模型连接器，并由用户确认上传的帧。"
+      "先配置独立视觉模型连接器，并由用户确认送去分析的九宫格。"
     );
+  }
+}
+
+export class LoopbackVisionConnector extends VisionAnalysisConnector {
+  constructor({ baseUrl = "http://127.0.0.1:4317", fetchImpl = globalThis.fetch, timeoutMs = 90_000 } = {}) {
+    super();
+    this.baseUrl = baseUrl.replace(/\/$/u, "");
+    this.fetchImpl = typeof fetchImpl === "function" ? fetchImpl.bind(globalThis) : fetchImpl;
+    this.timeoutMs = timeoutMs;
+  }
+
+  async getStatus() {
+    const response = await this.fetchImpl(`${this.baseUrl}/health`);
+    if (!response.ok) throw new ConnectorRequestError(`本机 bridge 返回 ${response.status}`, { status: response.status });
+    return (await response.json()).vision || { configured: false, model: "gemini-3.7-flash" };
+  }
+
+  async analyzeVideo(input) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const response = await this.fetchImpl(`${this.baseUrl}/v1/vision/analyze`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+        signal: controller.signal
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new ConnectorRequestError(payload.error?.message || `本机 bridge 返回 ${response.status}`, {
+          code: payload.error?.code,
+          status: response.status,
+          nextStep: payload.error?.nextStep || "保留九宫格，稍后手动重试。"
+        });
+      }
+      return payload;
+    } catch (error) {
+      if (error instanceof ConnectorRequestError) throw error;
+      if (error.name === "AbortError") throw new ConnectorRequestError("视觉 AI 请求超时", { code: "VISION_TIMEOUT" });
+      throw new ConnectorRequestError("无法连接本机视觉 AI bridge", { code: "BRIDGE_UNAVAILABLE" });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+export class DemoVisionConnector extends VisionAnalysisConnector {
+  getStatus() {
+    return { configured: true, provider: "Demo AI 模拟", model: "gemini-3.7-flash-demo" };
+  }
+
+  async analyzeVideo({ replacementBrief = "" } = {}) {
+    await new Promise((resolve) => setTimeout(resolve, 360));
+    return {
+      summary: "以粉色走秀画面开场，人物位置和字幕在场景内持续变化，结尾用品牌字卡收束。",
+      structure: { hook: "高饱和人物出场", progression: "走位与产品字卡交替", ending: "品牌口号定格", pace: "短场景快速切换" },
+      scenes: [{ index: 1, timeRange: "0–5s", visibleChange: "人物由远景进入中景", visualStyle: "粉色高饱和", transition: "硬切" }],
+      medeoPrompt: `制作一条 30 秒竖屏时尚短片：以高饱和粉色秀场远景开场，人物从画面深处走向镜头；中段穿插产品近景与大字号白色字卡，使用快速硬切；结尾以品牌口号全屏定格。${replacementBrief ? `替换要求：${replacementBrief}。` : ""}动作描述仅依据早、中、晚采样帧之间的可见位置变化。`
+    };
   }
 }

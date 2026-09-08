@@ -6,6 +6,7 @@ const server = createBridgeServer({
   apiKey: process.env.OPENAI_API_KEY,
   baseUrl: process.env.OPENAI_BASE_URL,
   model: "deepseek_v4_flash",
+  visionModel: "gemini-3.7-flash",
   extensionId: process.env.XPC_EXTENSION_ID
 });
 

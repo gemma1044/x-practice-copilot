@@ -24,6 +24,17 @@ export class TextGenerationConnector {
   }
 }
 
+/** 视频准备只通过本机 bridge；原视频不会直接交给视觉模型。 */
+export class MediaPreparationConnector {
+  getStatus() {
+    throw new Error("MediaPreparationConnector.getStatus 尚未实现");
+  }
+
+  async prepareVideo(_input) {
+    throw new Error("MediaPreparationConnector.prepareVideo 尚未实现");
+  }
+}
+
 /** 视觉能力独立于文字模型，避免把 DeepSeek 当成画面理解模型。 */
 export class VisionAnalysisConnector {
   getStatus() {

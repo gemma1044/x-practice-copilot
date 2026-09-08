@@ -33,7 +33,7 @@ async function startStaticServer() {
   return server;
 }
 
-test("Demo 完成灵感、实践、证据、草稿与截图排序主路径", { timeout: 30_000 }, async (t) => {
+test("Demo 完成灵感、实践、证据、草稿与本机截帧主路径", { timeout: 30_000 }, async (t) => {
   const server = await startStaticServer();
   const profileDir = await fs.mkdtemp(path.join(os.tmpdir(), "xpc-sidepanel-test-"));
   const context = await chromium.launchPersistentContext(profileDir, {
@@ -50,8 +50,18 @@ test("Demo 完成灵感、实践、证据、草稿与截图排序主路径", { t
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${port}/demo/`);
   const panel = page.frameLocator("#copilot");
+  await panel.getByText("AI Builder", { exact: false }).waitFor();
 
-  await page.getByRole("button", { name: "收为灵感" }).click();
+  assert.equal(await panel.locator("#draft-list .draft").count(), 0);
+  await panel.getByLabel("回复语种").selectOption("en");
+  await panel.getByRole("button", { name: "用 AI 生成 3 个角度" }).click();
+  await panel.getByLabel("观点补充草稿").waitFor();
+  assert.match(await panel.getByLabel("观点补充草稿").inputValue(), /The most useful signal/u);
+  assert.equal(await panel.locator("#draft-list .draft").count(), 3);
+
+  await panel.getByRole("button", { name: "灵感", exact: true }).click();
+  assert.equal(await panel.locator("#inspiration-quiz").isHidden(), true);
+  await panel.getByRole("button", { name: "AI 提炼" }).click();
   await panel.getByText("3 个 AI 同做 20 分钟海报", { exact: false }).waitFor();
   await panel.getByRole("button", { name: "保存灵感" }).click();
   await panel.getByText("实践与证据").waitFor();
@@ -72,20 +82,25 @@ test("Demo 完成灵感、实践、证据、草稿与截图排序主路径", { t
   });
 
   await page.reload();
+  await panel.getByRole("button", { name: "灵感", exact: true }).click();
   await panel.getByText("已确认 · 本地运行日志").waitFor();
   assert.equal(await panel.getByLabel("实际结果（完成后填写）").inputValue(), "完成一次运行并保存了本地日志");
 
   await page.getByRole("button", { name: "拆解视频" }).click();
-  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
-  await panel.locator("#video-file").setInputFiles([
-    { name: "01.png", mimeType: "image/png", buffer: png },
-    { name: "02.png", mimeType: "image/png", buffer: png },
-    { name: "03.png", mimeType: "image/png", buffer: png }
-  ]);
-  assert.equal(await panel.locator(".file-item").count(), 3);
-  await panel.getByRole("button", { name: "下移 01.png" }).click();
-  assert.match(await panel.locator(".file-item").first().innerText(), /02\.png/u);
-  await panel.getByRole("button", { name: "移除 03.png" }).click();
-  assert.equal(await panel.locator(".file-item").count(), 2);
-  await panel.getByText("请选择 3–8 张").waitFor();
+  await panel.getByRole("button", { name: "下载并本地截帧" }).click();
+  await panel.getByText("6 个场景 · 18 帧 · 2 张九宫格").waitFor();
+  assert.equal(await panel.locator(".contact-sheet").count(), 2);
+  await panel.getByLabel("选择第 1 张九宫格").uncheck();
+  assert.equal(await panel.getByRole("button", { name: "用选中的九宫格分析" }).isEnabled(), true);
+  await panel.getByLabel("替换说明").fill("把产品替换成我的银色耳机，场地换成海边日落");
+  await panel.locator("#reference-assets").setInputFiles({
+    name: "headphones.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64")
+  });
+  await panel.getByText("headphones.png").waitFor();
+  await panel.getByRole("button", { name: "用选中的九宫格分析" }).click();
+  await panel.getByText("Gemini 3.7 Flash：", { exact: false }).waitFor();
+  assert.match(await panel.getByLabel("Medeo prompt").inputValue(), /30 秒竖屏时尚短片/u);
+  assert.match(await panel.getByLabel("Medeo prompt").inputValue(), /银色耳机/u);
 });

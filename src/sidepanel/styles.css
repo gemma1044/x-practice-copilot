@@ -14,7 +14,7 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--paper); color: var(--ink); }
-button, textarea, input { font: inherit; }
+button, textarea, input, select { font: inherit; }
 .app { min-height: 100vh; padding: 18px; }
 .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .brand { display: flex; align-items: center; gap: 9px; font-size: 12px; font-weight: 850; line-height: 1.05; letter-spacing: -.01em; }
@@ -41,6 +41,12 @@ blockquote { margin: 7px 0 8px; font: 600 13px/1.55 Georgia, "Songti SC", serif;
 .primary { width: 100%; border: 0; border-radius: 12px; background: var(--orange); color: #fff; cursor: pointer; padding: 11px 12px; font-size: 12px; font-weight: 800; box-shadow: 0 4px 0 #b53a14; }
 .primary:active { transform: translateY(2px); box-shadow: 0 2px 0 #b53a14; }
 .primary:disabled { cursor: wait; opacity: .65; transform: none; box-shadow: 0 2px 0 #b53a14; }
+.comment-controls { display: grid; grid-template-columns: minmax(0, 1fr) 112px; align-items: stretch; gap: 9px; }
+.comment-controls .primary { min-height: 47px; }
+.reply-language { display: grid; gap: 3px; margin: 0; padding: 5px 9px 6px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--muted); font-size: 9px; font-weight: 750; }
+.reply-language span { line-height: 1; }
+.reply-language select { width: 100%; min-width: 0; border: 0; background: transparent; color: var(--ink); cursor: pointer; font-size: 11px; font-weight: 800; outline: 0; }
+.reply-language:focus-within { border-color: var(--orange); box-shadow: 0 0 0 3px var(--orange-soft); }
 .notice { margin: 12px 0; border-left: 3px solid #d89b16; border-radius: 0 9px 9px 0; background: #fff5d9; color: #694e11; padding: 9px 10px; font-size: 11px; line-height: 1.45; }
 .notice.success { border-left-color: var(--green); background: var(--green-soft); color: var(--green); }
 .ai-suggestion { margin: 13px 0; border: 1px solid #b7d8c9; border-radius: 12px; background: #f0faf5; padding: 11px; color: var(--green); font-size: 11px; line-height: 1.5; }
@@ -93,10 +99,25 @@ label textarea:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--
 .file-item { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 7px; background: #fff; }
 .file-item img { width: 48px; height: 42px; border-radius: 7px; object-fit: cover; background: #eee; }
 .file-item span { overflow: hidden; font-size: 10px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.file-item label { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 10px; }
+.file-item input { accent-color: var(--orange); }
 .file-actions { display: flex; gap: 3px; }
 .file-actions button { width: 25px; height: 25px; border: 1px solid var(--line); border-radius: 7px; background: var(--card); cursor: pointer; padding: 0; font-size: 11px; }
 .file-actions button:disabled { cursor: default; opacity: .35; }
 .file-item.error { border-color: #bf553d; background: #fff0ec; }
+.file-item.contact-sheet { display: block; padding: 8px; }
+.file-item.contact-sheet img { width: 100%; height: auto; max-height: 240px; border-radius: 9px; object-fit: contain; }
+.file-item.contact-sheet label { margin-top: 7px; }
+.replacement-box { margin: 14px 0; padding: 12px; border: 1px solid var(--line); border-radius: 13px; background: #faf8f3; }
+.replacement-box .workspace-head span { color: var(--muted); font-size: 10px; }
+.asset-picker { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0; border: 1px dashed #bcb4a4; border-radius: 10px; background: #fff; cursor: pointer; padding: 10px; }
+.asset-picker input { position: absolute; opacity: 0; pointer-events: none; }
+.asset-picker span { color: var(--ink); }
+.asset-picker small { color: var(--muted); font-weight: 500; text-align: right; }
+.reference-asset { grid-template-columns: 48px minmax(0, 1fr) auto; }
+.prompt-editor { margin: 12px 0; border-top: 1px solid var(--line); padding-top: 11px; }
+.prompt-editor summary { cursor: pointer; color: var(--muted); font-size: 11px; font-weight: 800; }
+.prompt-editor textarea { width: 100%; min-height: 150px; margin-top: 9px; border: 1px solid var(--line); border-radius: 11px; background: #fff; padding: 10px; font-size: 11px; line-height: 1.55; resize: vertical; }
 .output-shell { margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--line); }
 .output-shell textarea { width: 100%; min-height: 190px; margin: 8px 0; border: 1px solid var(--line); border-radius: 11px; background: #f9f7f1; padding: 10px; color: #555149; font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
 .toast { position: fixed; right: 18px; bottom: 18px; left: 18px; z-index: 10; opacity: 0; transform: translateY(8px); border-radius: 11px; background: var(--ink); color: #fff; padding: 10px 12px; pointer-events: none; text-align: center; font-size: 11px; transition: 160ms ease; }

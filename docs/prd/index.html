@@ -74,7 +74,7 @@
               <tr><td>最小实践</td><td>能在当下较短时间内完成、用来验证一个观点的小实验。</td><td><span class="new">新增</span></td><td>例如跑一次模型对比并保存输出。</td></tr>
               <tr><td>证据包</td><td>截图、链接、日志、输入输出、耗时与数字等真实记录的集合。</td><td><span class="new">新增</span></td><td>支撑第一人称事实断言。</td></tr>
               <tr><td>主张映射</td><td>草稿中每条事实性说法与证据包之间的对应关系。</td><td><span class="new">新增</span></td><td>无证据则降级措辞或删除。</td></tr>
-              <tr><td>关键截图组</td><td>用户手动选择并按顺序排列的代表性画面，用于视觉模型整体分析。</td><td><span class="new">新增</span></td><td>MVP 不自动抽帧。</td></tr>
+              <tr><td>场景九宫格</td><td>每个场景均匀截取早、中、晚 3 帧，每 3 个场景按时间顺序拼成一张图。</td><td><span class="new">新增</span></td><td>视觉模型只接收用户确认的九宫格。</td></tr>
               <tr><td>Medeo 复刻提示词</td><td>包含创意、分镜、节奏、画面与成片要求的一段完整输入。</td><td><span class="new">新增</span></td><td>交给本地 Medeo Video Skill。</td></tr>
               <tr><td>个人 X Base</td><td>候选为 Gemma 个人飞书账号下的 `Gemma X 灵感与实践` 多维表格，核验后作为灵感、实践、证据和拆解结果的业务主存储。</td><td><span class="new">待核验</span></td><td>候选 profile 为 `personal-wuyue` / `碧琪2.0`；核验前禁止远程写入，始终禁止使用公司租户。</td></tr>
             </tbody>
@@ -101,7 +101,7 @@
               <tr><td>基于当前帖子生成评论</td><td>✅ 保留：3 个角度、可改写、可复制</td><td>最高频入口，验证扩展价值。</td></tr>
               <tr><td>灵感卡 + 最小实践</td><td>✅ 保留：来源、机制、假设、步骤、证据</td><td>构成“不造假”的核心闭环。</td></tr>
               <tr><td>证据约束写作</td><td>✅ 保留：事实检测、证据映射、无证据降级</td><td>是产品差异，而非附加安全提示。</td></tr>
-              <tr><td>视频分析</td><td>⬇️ 降级：手动上传 3–8 张关键截图 → 视觉拆解</td><td>先验证拆解与提示词价值，不承担视频处理。</td></tr>
+              <tr><td>视频分析</td><td>当前公开帖子 → 本机临时下载 → FFmpeg 截帧 → 用户确认 → 视觉拆解</td><td>不读取登录 Cookie，不批量抓取。</td></tr>
               <tr><td>Medeo 集成</td><td>⬇️ 降级：先生成完整 prompt，一键复制；本地桥接可选</td><td>先验证提示词质量，再承担任务管理。</td></tr>
               <tr><td>自动下载 X 原视频</td><td>❌ 后置：只做 best-effort</td><td>受登录态、签名 URL、页面变更和平台规则影响。</td></tr>
               <tr><td>自动发布 / 批量互动</td><td>❌ 不做</td><td>高风险、容易误发，也偏离“用户确认”。</td></tr>
@@ -116,7 +116,7 @@
           <div class="flow"><div class="step"><b>1. 看见</b><span>浏览或点选一条帖子</span></div><div class="step"><b>2. 采集</b><span>识别正文、作者、链接、媒体</span></div><div class="step key"><b>3. 选择</b><span>评论 / 收灵感 / 拆视频</span></div><div class="step"><b>4. 提炼</b><span>AI 生成观点或创意机制</span></div><div class="step proof"><b>5. 实践</b><span>完成动作并保存证据</span></div><div class="step"><b>6. 表达</b><span>仅据证据生成草稿</span></div><div class="step"><b>7. 确认</b><span>用户复制发布或交给 Medeo</span></div></div>
           <div class="lane"><div class="lane-label">评论支线</div><div class="lane-track"><span class="node">读取语境</span><span class="node orange">事实风险扫描</span><span class="node">生成 3 条</span><span class="node green">证据核对</span><span class="node">用户复制</span></div></div>
           <div class="lane"><div class="lane-label">灵感支线</div><div class="lane-track"><span class="node">提炼机制</span><span class="node blue">生成最小实践</span><span class="node">用户执行</span><span class="node green">附证据</span><span class="node">生成故事</span></div></div>
-          <div class="lane"><div class="lane-label">视频支线</div><div class="lane-track"><span class="node">上传关键截图</span><span class="node blue">确认顺序</span><span class="node">视觉拆解</span><span class="node">镜头结构</span><span class="node orange">Medeo prompt</span></div></div>
+          <div class="lane"><div class="lane-label">视频支线</div><div class="lane-track"><span class="node">本机下载</span><span class="node blue">截帧确认</span><span class="node">视觉拆解</span><span class="node">镜头结构</span><span class="node orange">Medeo prompt</span></div></div>
         </section>
 
         <section class="section" id="features">
@@ -138,20 +138,20 @@
         </section>
 
         <section class="section" id="video">
-          <div class="kicker">06 / Video Reverse Engineering</div><h2>视频拆解：MVP 只看用户提供的关键截图</h2>
+          <div class="kicker">06 / Video Reverse Engineering</div><h2>视频拆解：公开视频只在本机下载与截帧</h2>
           <table>
             <thead><tr><th>输入方案</th><th>难度</th><th>质量</th><th>建议</th></tr></thead>
             <tbody>
-              <tr><td>用户上传 3–8 张关键截图</td><td>低</td><td>可判断构图、字幕、色彩与镜头顺序</td><td><strong>MVP 唯一入口</strong></td></tr>
-              <tr><td>扩展自动抽帧</td><td>中</td><td>可补充时间覆盖与场景变化</td><td>MVP 后置</td></tr>
+              <tr><td>本机 yt-dlp + FFmpeg</td><td>中</td><td>识别场景；每场景 3 帧并合成九宫格</td><td><strong>MVP 唯一入口</strong></td></tr>
+              <tr><td>用户手动上传截图</td><td>低</td><td>需要额外人工操作</td><td>本期移除，不保留第二入口</td></tr>
               <tr><td>标签页录制 / 视频上传</td><td>中–高</td><td>可增加连续画面与音频</td><td>MVP 后置</td></tr>
               <tr><td>自动抓 X 原视频地址</td><td>高且脆弱</td><td>依赖平台结构和登录态</td><td>不承诺</td></tr>
             </tbody>
           </table>
           <h3>MVP 分析范围</h3>
-          <div class="flow" style="grid-template-columns:repeat(4,1fr)"><div class="step"><b>输入</b><span>3–8 张截图</span></div><div class="step key"><b>视觉理解</b><span>独立视觉模型</span></div><div class="step"><b>结构化</b><span>画面与镜头顺序</span></div><div class="step proof"><b>复刻</b><span>Medeo prompt</span></div></div>
+          <div class="flow" style="grid-template-columns:repeat(4,1fr)"><div class="step"><b>本机准备</b><span>场景内均匀取 3 帧</span></div><div class="step key"><b>本机合成</b><span>每 3 场景一张九宫格</span></div><div class="step"><b>用户确认</b><span>选择要分析的九宫格</span></div><div class="step proof"><b>视觉理解</b><span>生成 Medeo prompt</span></div></div>
           <div class="grid2"><div class="mini"><h3>输出 A：可读拆解</h3><p>画幅、构图、字体层级、字幕安全区、色彩、素材类型、开头钩子和结尾收束。</p></div><div class="mini"><h3>输出 B：可执行复刻</h3><p>按截图顺序整理画面、字幕、动效与素材要求，并生成完整 Medeo 提示词。</p></div></div>
-          <div class="callout"><strong>模型分工</strong>评论、创意机制、实验设计与结构化写作统一经 <strong>Merouter</strong> 调用 <code>deepseek_v4_flash</code>；视觉帧分析需要单独的多模态视觉模型。最终文字结果可再由 DeepSeek 统一成 Medeo prompt。</div>
+          <div class="callout"><strong>模型分工</strong>评论与灵感统一经 <strong>Merouter</strong> 调用 <code>deepseek_v4_flash</code>；九宫格视觉分析经同一网关固定调用 <code>gemini-3.7-flash</code>，直接返回结构化拆解与 Medeo prompt。</div>
         </section>
 
         <section class="section" id="states">
@@ -160,9 +160,9 @@
           <div class="statusline"><span class="state">已收集</span><span class="state arrow">→</span><span class="state">待验证</span><span class="state arrow">→</span><span class="state">实践中</span><span class="state arrow">→</span><span class="state good">有证据</span><span class="state arrow">→</span><span class="state good">可发布</span></div>
           <p>允许从任一状态回到“待验证”修改方案；“已放弃”作为旁路终态。AI 或任务完成不能单独把状态改为“有证据”，必须由用户上传/确认真实记录。</p>
           <h3>核心实体关系</h3>
-          <table><thead><tr><th>实体</th><th>关系</th><th>最小字段</th></tr></thead><tbody><tr><td>SourcePost</td><td>1 : N Inspiration</td><td>URL、正文快照、作者、媒体、采集时间</td></tr><tr><td>Inspiration</td><td>1 : N Practice</td><td>机制、个人角度、状态、标签</td></tr><tr><td>Practice</td><td>1 : N Evidence</td><td>假设、步骤、开始/结束时间、结果</td></tr><tr><td>Draft</td><td>N : N Evidence</td><td>类型、正文、主张映射、版本</td></tr><tr><td>VideoAnalysis</td><td>1 : N Screenshot</td><td>来源、截图顺序、视觉结构、Medeo prompt</td></tr></tbody></table>
+          <table><thead><tr><th>实体</th><th>关系</th><th>最小字段</th></tr></thead><tbody><tr><td>SourcePost</td><td>1 : N Inspiration</td><td>URL、正文快照、作者、媒体、采集时间</td></tr><tr><td>Inspiration</td><td>1 : N Practice</td><td>机制、个人角度、状态、标签</td></tr><tr><td>Practice</td><td>1 : N Evidence</td><td>假设、步骤、开始/结束时间、结果</td></tr><tr><td>Draft</td><td>N : N Evidence</td><td>类型、正文、主张映射、版本</td></tr><tr><td>VideoAnalysis</td><td>1 : N Frame</td><td>来源、临时任务 ID、帧时间点、用户确认帧、视觉结构、Medeo prompt</td></tr></tbody></table>
           <h3>个人飞书 Base 作为候选业务主存储</h3><p>候选配置为 Gemma 个人飞书账号下的 <code>Gemma X 灵感与实践</code>，预期包含 <code>X 灵感</code>、<code>X 实践记录</code>、<code>X 视频拆解</code> 三张表，并使用 <code>personal-wuyue</code> profile（应用：碧琪2.0）。当前尚未核验身份、权限、表结构或连通性；核验前业务数据只写 Chrome Storage，远程 repository 拒绝读写。</p>
-          <table><thead><tr><th>Base 表</th><th>一行代表什么</th><th>主要内容</th></tr></thead><tbody><tr><td>X 灵感</td><td>一条来源帖子提炼出的灵感</td><td>来源、快照、机制、个人角度、状态、下一步</td></tr><tr><td>X 实践记录</td><td>一次真实执行</td><td>假设、步骤、实际结果、证据、评论草稿与主张映射</td></tr><tr><td>X 视频拆解</td><td>一次视频分析任务</td><td>截图顺序、视觉结构、Medeo prompt 与结果链接</td></tr></tbody></table>
+          <table><thead><tr><th>Base 表</th><th>一行代表什么</th><th>主要内容</th></tr></thead><tbody><tr><td>X 灵感</td><td>一条来源帖子提炼出的灵感</td><td>来源、快照、机制、个人角度、状态、下一步</td></tr><tr><td>X 实践记录</td><td>一次真实执行</td><td>假设、步骤、实际结果、证据、评论草稿与主张映射</td></tr><tr><td>X 视频拆解</td><td>一次视频分析任务</td><td>帧时间点、用户确认帧、视觉结构、Medeo prompt 与结果链接</td></tr></tbody></table>
         </section>
 
         <section class="section" id="experience">
@@ -175,22 +175,22 @@
             </div>
           </div>
           <h3>Feedback 与边界</h3>
-          <table><thead><tr><th>场景</th><th>用户看到什么</th><th>系统是否自动续跑</th></tr></thead><tbody><tr><td>正在生成</td><td>阶段状态与可取消按钮；不展示虚假精确进度</td><td>是</td></tr><tr><td>上下文不完整</td><td>“仅基于当前可见帖子”及补充入口</td><td>是，按降级上下文</td></tr><tr><td>检测到无证据事实</td><td>高亮主张，提供补证据 / 改措辞 / 删除</td><td><strong>否，必须用户决定</strong></td></tr><tr><td>截图不足或损坏</td><td>保留可用截图，并提示继续补充或移除问题图片</td><td><strong>否，等待用户决定</strong></td></tr><tr><td>Medeo 生成</td><td>发送内容预览、预计较久、任务状态</td><td>确认后自动异步</td></tr><tr><td>非关键成功</td><td>轻量回执，不弹窗打断</td><td>是</td></tr></tbody></table>
+          <table><thead><tr><th>场景</th><th>用户看到什么</th><th>系统是否自动续跑</th></tr></thead><tbody><tr><td>正在生成</td><td>阶段状态与可取消按钮；不展示虚假精确进度</td><td>是</td></tr><tr><td>上下文不完整</td><td>“仅基于当前可见帖子”及补充入口</td><td>是，按降级上下文</td></tr><tr><td>检测到无证据事实</td><td>高亮主张，提供补证据 / 改措辞 / 删除</td><td><strong>否，必须用户决定</strong></td></tr><tr><td>X 返回 429 / 403</td><td>停止处理，显示稍后再试或当前内容不支持</td><td><strong>否，不自动重试</strong></td></tr><tr><td>场景处理部分成功</td><td>跳过失败场景，保留可用九宫格；至少 1 张才可继续</td><td><strong>否，等待用户决定</strong></td></tr><tr><td>Medeo 生成</td><td>发送内容预览、预计较久、任务状态</td><td>确认后自动异步</td></tr><tr><td>非关键成功</td><td>轻量回执，不弹窗打断</td><td>是</td></tr></tbody></table>
         </section>
 
         <section class="section" id="tech">
           <div class="kicker">09 / Engineering Appendix</div><h2>实现建议（研发可读，其他人可跳过）</h2>
           <details open><summary>浏览器扩展结构</summary><p>Manifest V3。Content Script 负责识别当前帖子和用户选区；Side Panel 承载主要工作流；Service Worker 管理任务与权限；Offscreen Document 可用于标签页媒体处理。对 X DOM 使用集中适配层，避免选择器散落。</p></details>
-          <details><summary>模型与密钥边界</summary><p>扩展不持有模型密钥。它通过本机回环地址安全桥接访问 Merouter 的 OpenAI-compatible 接口，固定 <code>OPENAI_BASE_URL=https://merouter.play.one2x.ai/v1</code>，模型为 <code>deepseek_v4_flash</code>；真实 <code>OPENAI_API_KEY</code> 仅从本机环境读取。桥接校验扩展来源并限制模型、请求大小和能力。</p></details>
+          <details><summary>模型与密钥边界</summary><p>扩展不持有模型密钥。它通过本机回环地址安全桥接访问 Merouter 的 OpenAI-compatible 接口，固定 <code>OPENAI_BASE_URL=https://merouter.play.one2x.ai/v1</code>；文字模型为 <code>deepseek_v4_flash</code>，视觉模型为 <code>gemini-3.7-flash</code>。真实 <code>OPENAI_API_KEY</code> 仅从本机环境读取。桥接校验扩展来源并限制模型、请求大小和能力。</p></details>
           <details><summary>飞书多维表格连接</summary><p>同一本地桥接负责读写个人账号下的独立 Base，避免把飞书凭证放进扩展包。创建或写入前必须核验当前 user 身份属于个人账号；公司租户一律拒绝。按来源链接和关联灵感 upsert；Base 不可用时进入本地待同步队列。</p></details>
-          <details><summary>视频 MVP</summary><p>扩展只接收用户手动选择的 3–8 张 PNG、JPG 或 WEBP 截图，并按选择顺序交给独立视觉连接器。自动抽帧、视频解码、标签页录制、音频分析和精确时间码全部后置。</p></details>
+          <details><summary>视频 MVP</summary><p>扩展把当前公开帖子 URL 交给本机 bridge，使用 yt-dlp 串行临时下载；FFmpeg 识别镜头切换，每个场景在约 1/6、1/2、5/6 处截 3 帧，每 3 个连续场景合成一张九宫格。最多保留 15 个场景、5 张九宫格。默认不读取登录 Cookie；任务结束即删除原视频和单帧。批量抓取、代理轮换、标签页录制、音频分析全部后置。</p></details>
           <details><summary>Medeo 连接</summary><p>本机已存在 <code>/Users/gemma/Projects/medeo-video-skill</code>，支持上传 <code>.jpg/.png/.webp/.mp4/.mov/.gif</code>，以及把完整故事放入一次生成调用。MVP 先输出并复制完整 prompt；自动调用时通过本地桥接执行异步任务，展示结果而不暴露密钥。</p></details>
           <details><summary>平台与合规风险</summary><p>X 页面结构、登录态与媒体 URL 会变化；扩展应限制到用户主动操作，不绕过访问控制，不批量抓取或自动发布。是否允许发布到 Chrome Web Store，以及目标浏览器是否只有 Chrome，需要在进入实现前确认。</p></details>
         </section>
 
         <section class="section" id="acceptance">
           <div class="kicker">10 / Acceptance</div><h2>验收标准与成功指标</h2>
-          <div class="grid2"><div class="mini"><span class="num">AC 01</span><h3>评论可用</h3><p>单条帖子在 10 秒内得到 3 条角度不同的可编辑草稿；无证据时不出现第一人称已实践断言。</p></div><div class="mini"><span class="num">AC 02</span><h3>灵感闭环</h3><p>一条帖子可创建灵感、最小实践、证据包，并据此生成带主张映射的评论。</p></div><div class="mini"><span class="num">AC 03</span><h3>拆解可执行</h3><p>上传 3–8 张截图后，产出按顺序组织的视觉结构与完整 Medeo prompt，不声称音频或时间码结论。</p></div><div class="mini"><span class="num">AC 04</span><h3>权限可控</h3><p>截图送视觉模型与 Medeo 生成都有明确的用户触发；密钥不进入扩展包。</p></div></div>
+          <div class="grid2"><div class="mini"><span class="num">AC 01</span><h3>评论可用</h3><p>单条帖子在 10 秒内得到 3 条角度不同的可编辑草稿；无证据时不出现第一人称已实践断言。</p></div><div class="mini"><span class="num">AC 02</span><h3>灵感闭环</h3><p>一条帖子可创建灵感、最小实践、证据包，并据此生成带主张映射的评论。</p></div><div class="mini"><span class="num">AC 03</span><h3>拆解可执行</h3><p>当前公开视频可在本机识别场景、每场景得到 3 帧并合成九宫格；用户确认后由 Gemini 产出视觉结构与完整 Medeo prompt。</p></div><div class="mini"><span class="num">AC 04</span><h3>权限可控</h3><p>默认不读取登录 Cookie；原视频和单帧不上传，九宫格送视觉模型与 Medeo 生成都有明确用户触发。</p></div></div>
           <h3>建议观察指标</h3>
           <table><thead><tr><th>指标</th><th>定义</th><th>早期参考目标</th></tr></thead><tbody><tr><td>评论采用率</td><td>生成后被复制或填入回复框的会话比例</td><td>≥ 35%</td></tr><tr><td>实践启动率</td><td>灵感卡创建后 24h 内进入“实践中”的比例</td><td>≥ 25%</td></tr><tr><td>证据完成率</td><td>已启动实践中进入“有证据”的比例</td><td>≥ 40%</td></tr><tr><td>失真拦截率</td><td>被识别并改写/删除的无证据事实主张比例</td><td>先做基线，不设越高越好</td></tr><tr><td>视频复刻启动率</td><td>分析完成后复制 prompt 或发起 Medeo 的比例</td><td>≥ 20%</td></tr></tbody></table>
         </section>
@@ -200,7 +200,7 @@
           <div class="grid3" style="margin-bottom:18px"><div class="mini"><span class="num">已定 01</span><h3>单人自用</h3><p>不设计团队角色、审批或多租户。</p></div><div class="mini"><span class="num">已定 02</span><h3>Merouter</h3><p>文字模型固定走 Merouter 的 DeepSeek V4 Flash。</p></div><div class="mini"><span class="num">待核验 03</span><h3>个人飞书 Base</h3><p>候选为碧琪2.0与三张专用表；核验前禁止远程写入，始终禁止使用公司租户。</p></div></div>
           <div class="decision"><div class="dnum">1</div><div><strong>项目名是否使用 X Practice Copilot？</strong><br><span style="color:var(--muted)">当前目录名为 <code>x-practice-copilot</code>，含义比“Twitter 评论插件”更能覆盖真实实践与视频复刻。</span></div><span class="recommend">推荐保留</span></div>
           <div class="decision"><div class="dnum">2</div><div><strong>目标浏览器先只做 Chrome / Edge（Chromium）吗？</strong><br><span style="color:var(--muted)">Safari / Firefox 会显著增加侧栏、录屏和发布适配成本。</span></div><span class="recommend">推荐是</span></div>
-          <div class="decision"><div class="dnum">3</div><div><strong>视频 MVP 是否只接受用户手动上传关键截图？</strong><br><span style="color:var(--muted)">已拍板：先验证视觉拆解与 Medeo prompt，不开发抽帧和录制。</span></div><span class="recommend">已确认</span></div>
+          <div class="decision"><div class="dnum">3</div><div><strong>视频 MVP 是否改为本机下载并截帧？</strong><br><span style="color:var(--muted)">已拍板：移除手动截图入口；只处理用户主动确认的单条公开视频，默认无 Cookie。</span></div><span class="recommend">已确认</span></div>
           <div class="decision"><div class="dnum">4</div><div><strong>MVP 是否坚持“不自动发布评论”？</strong><br><span style="color:var(--muted)">一键复制/填入但不发送，能保留最后的人类确认。</span></div><span class="recommend">推荐坚持</span></div>
           <div class="callout"><strong>建议的整体放行语句</strong>“主路径没问题；剩余四项按推荐推进。”——如果你认可，可以直接用这句话进入下一轮技术方案或原型。</div>
         </section>

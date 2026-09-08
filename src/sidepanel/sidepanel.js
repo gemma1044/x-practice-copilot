@@ -1,15 +1,19 @@
-import { DemoTextConnector, LoopbackTextConnector, UnconfiguredVisionConnector } from "../core/connectors.js";
+import { DemoMediaConnector, DemoTextConnector, DemoVisionConnector, LoopbackMediaConnector, LoopbackTextConnector, LoopbackVisionConnector } from "../core/connectors.js";
 import { enforceEvidence } from "../core/evidence.js";
 import { ChromeStoragePracticeRepository } from "../core/repositories.js";
 
 const isDemo = new URLSearchParams(location.search).get("demo") === "1";
 const textConnector = isDemo ? new DemoTextConnector() : new LoopbackTextConnector();
-const visionConnector = new UnconfiguredVisionConnector();
+const mediaConnector = isDemo ? new DemoMediaConnector() : new LoopbackMediaConnector();
+const visionConnector = isDemo ? new DemoVisionConnector() : new LoopbackVisionConnector();
 const repository = new ChromeStoragePracticeRepository();
 const state = {
   context: null,
   mode: "comment",
-  files: [],
+  scenes: [],
+  contactSheets: [],
+  referenceAssets: [],
+  videoDurationSeconds: 0,
   commentsGeneratedFor: null,
   inspirationGeneratedFor: null,
   inspirationResult: null,
@@ -19,7 +23,6 @@ const state = {
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
-let previewUrls = [];
 
 function showToast(message) {
   const toast = $("#toast");
@@ -33,9 +36,6 @@ function setMode(mode) {
   state.mode = mode;
   $$('[data-tab]').forEach((button) => button.classList.toggle("active", button.dataset.tab === mode));
   $$('[data-panel]').forEach((panel) => panel.classList.toggle("active", panel.dataset.panel === mode));
-  if (!state.context) return;
-  if (mode === "comment" && state.commentsGeneratedFor !== state.context.id) runCommentGeneration();
-  if (mode === "inspiration" && state.inspirationGeneratedFor !== state.context.id) runInspirationGeneration();
 }
 
 function renderSource() {
@@ -75,9 +75,10 @@ async function runCommentGeneration() {
   notice.classList.remove("success");
   notice.textContent = isDemo ? "Demo AI 正在生成三个评论角度…" : "正在请求文字 AI…";
   try {
-    const drafts = await textConnector.generateComments({ sourcePost: state.context });
+    const replyLanguage = $("#reply-language").value;
+    const drafts = await textConnector.generateComments({ sourcePost: state.context, replyLanguage });
     renderDrafts(drafts);
-    state.commentsGeneratedFor = state.context.id;
+    state.commentsGeneratedFor = `${state.context.id}:${replyLanguage}`;
     status.textContent = isDemo ? "DEMO AI 已生成" : "AI 已生成";
     status.className = "status local";
     notice.classList.add("success");
@@ -88,7 +89,7 @@ async function runCommentGeneration() {
     notice.textContent = `${error.message}。${error.nextStep || ""}`;
   } finally {
     button.disabled = false;
-    button.textContent = state.commentsGeneratedFor === state.context?.id ? "重新用 AI 生成" : "用 AI 生成 3 个角度";
+    button.textContent = state.commentsGeneratedFor ? "重新用 AI 生成" : "用 AI 生成 3 个角度";
   }
 }
 
@@ -176,56 +177,39 @@ async function restorePracticeWorkspace() {
 
 function renderMedeoPrompt() {
   const source = state.context?.url || "[来源帖子链接]";
-  $("#medeo-prompt").value = `请根据用户按顺序提供的关键截图复刻一条短视频。\n\n来源：${source}\n素材：用户确认的关键截图\n\n【创意目标】\n[待视觉分析后填写：核心信息与观看动机]\n\n【画面与版式】\n[待填写：画幅、字体层级、字幕安全区、色彩与构图]\n\n【镜头顺序】\n[待填写：每张截图代表的画面、字幕、动效与素材]\n\n【成片要求】\n只依据截图描述可见画面；不推断音频或精确时间码；生成前由用户确认最终 prompt。`;
+  const timepoints = state.scenes.flatMap((scene) => scene.frameTimes).map((time) => `${time.toFixed(1)}s`).join("、") || "[待本机截帧]";
+  $("#medeo-prompt").value = `请根据用户确认的代表帧复刻一条短视频。\n\n来源：${source}\n本机截帧时间点：${timepoints}\n\n【创意目标】\n[待视觉分析后填写：核心信息与观看动机]\n\n【画面与版式】\n[待填写：画幅、字体层级、字幕安全区、色彩与构图]\n\n【镜头顺序】\n[待填写：每张代表帧对应的画面、字幕、动效与素材]\n\n【成片要求】\n只依据确认帧描述可见画面；不推断音频；生成前由用户确认最终 prompt。`;
 }
 
-function renderFiles() {
-  previewUrls.forEach((url) => URL.revokeObjectURL(url));
-  previewUrls = [];
-  $("#file-summary").textContent = state.files.length
-    ? `已选择 ${state.files.length} 张截图${state.files.length < 3 || state.files.length > 8 ? "，请选择 3–8 张" : "，将按下列顺序分析"}`
-    : "尚未选择截图";
-  const items = state.files.map((file, index) => {
+function renderContactSheets() {
+  const selectedCount = state.contactSheets.filter((sheet) => sheet.selected).length;
+  const frameCount = state.scenes.length * 3;
+  $("#frame-summary").textContent = state.contactSheets.length
+    ? `${state.scenes.length} 个场景 · ${frameCount} 帧 · ${state.contactSheets.length} 张九宫格`
+    : "尚未生成九宫格";
+  $("#analyze-video").disabled = selectedCount < 1;
+  const items = state.contactSheets.map((sheet, index) => {
     const item = document.createElement("li");
-    item.className = "file-item";
+    item.className = "file-item contact-sheet";
     const preview = document.createElement("img");
-    const previewUrl = URL.createObjectURL(file);
-    previewUrls.push(previewUrl);
-    preview.src = previewUrl;
-    preview.alt = `第 ${index + 1} 张：${file.name}`;
-    preview.addEventListener("error", () => {
-      item.classList.add("error");
-      preview.alt = `无法读取：${file.name}`;
+    preview.src = sheet.dataUrl;
+    preview.alt = `第 ${index + 1} 张九宫格，包含场景 ${sheet.sceneIds.join("、")}`;
+    const toggle = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = sheet.selected;
+    input.setAttribute("aria-label", `选择第 ${index + 1} 张九宫格`);
+    input.addEventListener("change", () => {
+      sheet.selected = input.checked;
+      renderContactSheets();
     });
     const name = document.createElement("span");
-    name.textContent = `${index + 1}. ${file.name}`;
-    const actions = document.createElement("div");
-    actions.className = "file-actions";
-    for (const [label, delta] of [["上移", -1], ["下移", 1]]) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = delta < 0 ? "↑" : "↓";
-      button.setAttribute("aria-label", `${label} ${file.name}`);
-      button.disabled = index + delta < 0 || index + delta >= state.files.length;
-      button.addEventListener("click", () => {
-        [state.files[index], state.files[index + delta]] = [state.files[index + delta], state.files[index]];
-        renderFiles();
-      });
-      actions.append(button);
-    }
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.textContent = "×";
-    remove.setAttribute("aria-label", `移除 ${file.name}`);
-    remove.addEventListener("click", () => {
-      state.files.splice(index, 1);
-      renderFiles();
-    });
-    actions.append(remove);
-    item.append(preview, name, actions);
+    name.textContent = `九宫格 ${index + 1} · ${sheet.frameCount} 帧`;
+    toggle.append(input, name);
+    item.append(preview, toggle);
     return item;
   });
-  $("#file-list").replaceChildren(...items);
+  $("#frame-list").replaceChildren(...items);
 }
 
 async function refreshTextStatus() {
@@ -245,6 +229,18 @@ async function refreshTextStatus() {
   }
 }
 
+async function refreshMediaStatus() {
+  const node = $("#media-status");
+  try {
+    const status = await mediaConnector.getStatus();
+    node.textContent = status.configured ? (isDemo ? "DEMO 本机工具" : "本机工具就绪") : "需安装 yt-dlp";
+    node.className = `status ${status.configured ? "local" : "warning"}`;
+  } catch {
+    node.textContent = "Bridge 未启动";
+    node.className = "status warning";
+  }
+}
+
 async function copyText(value, successMessage) {
   await navigator.clipboard.writeText(value);
   showToast(successMessage);
@@ -252,7 +248,20 @@ async function copyText(value, successMessage) {
 
 async function loadContext() {
   const data = await chrome.storage.local.get(["xpc_current_context", "xpc_current_mode"]);
-  state.context = data.xpc_current_context || null;
+  const nextContext = data.xpc_current_context || null;
+  if (state.context?.id && state.context.id !== nextContext?.id) {
+    state.commentsGeneratedFor = null;
+    state.inspirationGeneratedFor = null;
+    state.inspirationResult = null;
+    $("#draft-list").replaceChildren();
+    $("#inspiration-quiz").hidden = true;
+    $("#text-connector-notice").classList.remove("success");
+    $("#text-connector-notice").textContent = "尚未调用 AI，不会用本地模板冒充模型结果。";
+    state.referenceAssets = [];
+    $("#replacement-brief").value = "";
+    renderReferenceAssets();
+  }
+  state.context = nextContext;
   renderSource();
   await restorePracticeWorkspace();
   setMode(data.xpc_current_mode || "comment");
@@ -260,6 +269,10 @@ async function loadContext() {
 
 $$('[data-tab]').forEach((button) => button.addEventListener("click", () => setMode(button.dataset.tab)));
 $("#generate-comments").addEventListener("click", runCommentGeneration);
+$("#reply-language").addEventListener("change", () => {
+  state.commentsGeneratedFor = null;
+  $("#generate-comments").textContent = "用 AI 生成 3 个角度";
+});
 $("#generate-inspiration").addEventListener("click", runInspirationGeneration);
 
 $("#save-inspiration").addEventListener("click", async () => {
@@ -333,19 +346,103 @@ $("#build-evidence-draft").addEventListener("click", async () => {
   }
 });
 
-$("#video-file").addEventListener("change", (event) => {
-  state.files = [...event.target.files];
-  renderFiles();
+$("#prepare-video").addEventListener("click", async () => {
+  if (!state.context?.url) return showToast("请先从一条 X 帖子打开侧栏。 ");
+  if (!state.context.media?.hasVideo) return showToast("当前帖子没有检测到可处理的视频。 ");
+  const button = $("#prepare-video");
+  button.disabled = true;
+  button.textContent = "正在下载并截帧…";
+  $("#media-notice").textContent = "正在本机串行处理；请勿连续触发。";
+  try {
+    const result = await mediaConnector.prepareVideo({ sourcePost: state.context });
+    state.scenes = result.scenes;
+    state.contactSheets = result.contactSheets.map((sheet) => ({ ...sheet, selected: true }));
+    state.videoDurationSeconds = result.durationSeconds;
+    renderContactSheets();
+    renderMedeoPrompt();
+    $("#media-status").textContent = isDemo ? "DEMO 已截帧" : "本机已截帧";
+    $("#media-status").className = "status local";
+    $("#media-notice").classList.add("success");
+    $("#media-notice").textContent = `已识别 ${result.scenes.length} 个场景，每场景 3 帧，合成 ${result.contactSheets.length} 张九宫格。`;
+  } catch (error) {
+    $("#media-notice").classList.remove("success");
+    $("#media-notice").textContent = `${error.message}。${error.nextStep || ""}`;
+    showToast(error.code === "MEDIA_RATE_LIMITED" ? "X 已限流，请停止重试。" : "本机截帧未完成。 ");
+  } finally {
+    button.disabled = false;
+    button.textContent = state.contactSheets.length ? "重新下载并截帧" : "下载并本地截帧";
+  }
+});
+
+function renderReferenceAssets() {
+  const items = state.referenceAssets.map((asset, index) => {
+    const item = document.createElement("li");
+    item.className = "file-item reference-asset";
+    const preview = document.createElement("img");
+    preview.src = asset.dataUrl;
+    preview.alt = asset.name;
+    const name = document.createElement("span");
+    name.textContent = asset.name;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "text-button";
+    remove.textContent = "移除";
+    remove.addEventListener("click", () => {
+      state.referenceAssets.splice(index, 1);
+      renderReferenceAssets();
+    });
+    item.append(preview, name, remove);
+    return item;
+  });
+  $("#reference-asset-list").replaceChildren(...items);
+}
+
+$("#reference-assets").addEventListener("change", async (event) => {
+  const files = [...event.target.files].slice(0, 4);
+  if ([...event.target.files].length > 4) showToast("最多使用前 4 张参考图。 ");
+  const allowed = new Set(["image/png", "image/jpeg", "image/webp"]);
+  const valid = files.filter((file) => allowed.has(file.type) && file.size <= 5 * 1024 * 1024);
+  if (valid.length !== files.length) showToast("已忽略格式不支持或超过 5 MB 的图片。 ");
+  try {
+    state.referenceAssets = await Promise.all(valid.map((file) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => resolve({ name: file.name, dataUrl: reader.result }));
+      reader.addEventListener("error", () => reject(reader.error));
+      reader.readAsDataURL(file);
+    })));
+    renderReferenceAssets();
+  } catch {
+    showToast("参考图读取失败，请重新选择。 ");
+  }
+  event.target.value = "";
 });
 
 $("#analyze-video").addEventListener("click", async () => {
-  if (!state.files.length) return showToast("请先选择关键截图。 ");
-  if (state.files.length < 3 || state.files.length > 8) return showToast("请选择 3–8 张关键截图。 ");
+  const contactSheets = state.contactSheets.filter((sheet) => sheet.selected);
+  if (!contactSheets.length) return showToast("请至少选择 1 张九宫格。 ");
+  const button = $("#analyze-video");
+  button.disabled = true;
+  button.textContent = "Gemini 正在分析…";
   try {
-    await visionConnector.analyzeVideo({ files: state.files, sourcePost: state.context });
+    const result = await visionConnector.analyzeVideo({
+      contactSheets,
+      scenes: state.scenes,
+      sourcePost: state.context,
+      analysisPrompt: $("#analysis-prompt").value,
+      replacementBrief: $("#replacement-brief").value,
+      referenceImages: state.referenceAssets
+    });
+    $("#vision-notice").classList.add("success");
+    $("#vision-notice").textContent = `Gemini 3.7 Flash：${result.summary}`;
+    $("#medeo-prompt").value = result.medeoPrompt;
+    showToast("视觉拆解与 Medeo prompt 已生成。 ");
   } catch (error) {
+    $("#vision-notice").classList.remove("success");
     $("#vision-notice").textContent = `${error.message}。${error.nextStep || ""}`;
-    showToast("未上传文件：视觉连接器尚未配置。 ");
+    showToast("视觉分析未完成，九宫格仍保留。 ");
+  } finally {
+    button.disabled = false;
+    button.textContent = "用选中的九宫格分析";
   }
 });
 
@@ -356,4 +453,16 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 loadContext();
-refreshTextStatus();
+function refreshConnectorStatuses() {
+  refreshTextStatus();
+  refreshMediaStatus();
+}
+
+refreshConnectorStatuses();
+window.addEventListener("focus", refreshConnectorStatuses);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) refreshConnectorStatuses();
+});
+setInterval(() => {
+  if (!document.hidden) refreshConnectorStatuses();
+}, 5_000);
