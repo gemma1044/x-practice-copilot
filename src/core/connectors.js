@@ -287,8 +287,9 @@ export class DemoVisionConnector extends VisionAnalysisConnector {
     await new Promise((resolve) => setTimeout(resolve, 360));
     return {
       summary: "以粉色走秀画面开场，人物位置和字幕在场景内持续变化，结尾用品牌字卡收束。",
+      sourceAnalysis: { postSummary: "原帖展示用参考图驱动的时尚短片。", claimedModel: "MiniMax H3 + Midjourney v8.2", modelEvidence: "原帖正文明确提到 MiniMax H3 与 Midjourney v8.2", confidence: "高" },
       structure: { hook: "高饱和人物出场", progression: "走位与产品字卡交替", ending: "品牌口号定格", pace: "短场景快速切换" },
-      scenes: [{ index: 1, timeRange: "0–5s", visibleChange: "人物由远景进入中景", visualStyle: "粉色高饱和", transition: "硬切" }],
+      clips: Array.from({ length: 6 }, (_, index) => ({ index: index + 1, startSeconds: index * 5, endSeconds: index * 5 + 5, whatHappens: index === 0 ? "人物进入粉色秀场并走向镜头" : `场景 ${index + 1} 展示人物与产品画面`, narrativeRole: index === 0 ? "开头钩子" : index === 5 ? "结尾收束" : "内容推进", visibleText: index === 5 ? "品牌口号" : "", visibleChange: "主体位置发生变化", visualStyle: "粉色高饱和", transition: "硬切" })),
       medeoPrompt: `制作一条 30 秒竖屏时尚短片：以高饱和粉色秀场远景开场，人物从画面深处走向镜头；中段穿插产品近景与大字号白色字卡，使用快速硬切；结尾以品牌口号全屏定格。${replacementBrief ? `替换要求：${replacementBrief}。` : ""}动作描述仅依据早、中、晚采样帧之间的可见位置变化。`
     };
   }

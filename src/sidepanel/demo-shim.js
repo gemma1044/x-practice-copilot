@@ -7,7 +7,7 @@
   const sampleContext = {
     id: "demo-1908800000000000000",
     url: "https://x.com/ai_builder/status/1908800000000000000",
-    text: "真正有用的 AI 评测，不是问模型会不会，而是给它一个 20 分钟的真实任务，看它留下了什么可复查的产物。",
+    text: "MiniMax H3 + Midjourney v8.2：用六张 Midjourney 参考图生成一支时尚预告片，看 H3 如何保留人物、色彩与场景连续性。",
     authorName: "AI Builder",
     authorHandle: "@ai_builder",
     capturedAt: new Date().toISOString(),

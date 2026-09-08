@@ -30,6 +30,32 @@ function upstreamResponse(content) {
   });
 }
 
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+}
+
+async function postJson(baseUrl, pathname, body) {
+  return fetch(`${baseUrl}${pathname}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body)
+  });
+}
+
+async function waitFor(predicate, message, timeoutMs = 1_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() >= deadline) throw new Error(message);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
 test("未配置 bridge 只报告状态并拒绝模型请求", async () => {
   await withBridge({}, async (baseUrl) => {
     const health = await fetch(`${baseUrl}/health`).then((response) => response.json());
@@ -179,8 +205,9 @@ test("视觉端点固定使用 Gemini 3.7 Flash 并接收九宫格", async () =>
     requests.push(JSON.parse(init.body));
     return upstreamResponse({
       summary: "人物位置在场景内发生变化。",
+      sourceAnalysis: { postSummary: "原帖展示模型评测。", claimedModel: "GPT-6", modelEvidence: "原帖正文明确提到 GPT-6", confidence: "高" },
       structure: { hook: "人物开场", progression: "产品展示", ending: "字卡收束", pace: "快切" },
-      scenes: [{ index: 1, timeRange: "0–12s", visibleChange: "远景到近景", visualStyle: "粉色", transition: "硬切" }],
+      clips: [{ index: 1, whatHappens: "人物从远景走到近景", narrativeRole: "开头钩子", visibleText: "", visibleChange: "远景到近景", visualStyle: "粉色", transition: "硬切" }],
       medeoPrompt: "生成一条竖屏时尚短片。"
     });
   };
@@ -203,10 +230,141 @@ test("视觉端点固定使用 Gemini 3.7 Flash 并接收九宫格", async () =>
       })
     });
     assert.equal(response.status, 200);
-    assert.equal((await response.json()).medeoPrompt, "生成一条竖屏时尚短片。");
+    const payload = await response.json();
+    assert.equal(payload.medeoPrompt, "生成一条竖屏时尚短片。");
+    assert.equal(payload.sourceAnalysis.claimedModel, "GPT-6");
+    assert.deepEqual([payload.clips[0].startSeconds, payload.clips[0].endSeconds], [0, 12]);
     assert.equal(requests[0].model, "gemini-3.7-flash");
     assert.equal(requests[0].messages[1].content.filter((item) => item.type === "image_url").length, 2);
     assert.match(requests[0].messages[1].content[0].text, /银色耳机/u);
     assert.match(requests[0].messages[1].content[0].text, /分析镜头并执行替换/u);
+    assert.match(requests[0].messages[0].content, /每个 clip/u);
+  });
+});
+
+test("bridge 合并相同规范化输入的在途请求并在成功后短期复用", async () => {
+  const gate = deferred();
+  let upstreamCalls = 0;
+  const comments = {
+    comments: [
+      { title: "观点补充", text: "第一条" },
+      { title: "开放提问", text: "第二条" },
+      { title: "实践计划", text: "第三条" }
+    ]
+  };
+  await withBridge({
+    apiKey: "test-only-key",
+    baseUrl: "https://upstream.invalid/v1",
+    extensionId: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    idempotencyTtlMs: 40,
+    upstreamFetch: async () => {
+      upstreamCalls += 1;
+      if (upstreamCalls === 1) await gate.promise;
+      return upstreamResponse(comments);
+    }
+  }, async (baseUrl) => {
+    const first = postJson(baseUrl, "/v1/text/comments", {
+      sourcePost: { ...sourcePost, text: `  ${sourcePost.text}  ` },
+      ignoredClientField: "不参与规范化"
+    });
+    const second = postJson(baseUrl, "/v1/text/comments", {
+      sourcePost,
+      replyLanguage: "zh-CN"
+    });
+
+    try {
+      await waitFor(() => upstreamCalls === 1, "没有等到首个上游请求");
+      assert.equal(upstreamCalls, 1, "相同规范化输入的在途请求应只调用一次上游");
+    } finally {
+      gate.resolve();
+    }
+    const [firstResponse, secondResponse] = await Promise.all([first, second]);
+    assert.equal(firstResponse.status, 200);
+    assert.equal(secondResponse.status, 200);
+    assert.deepEqual(await firstResponse.json(), await secondResponse.json());
+
+    const cached = await postJson(baseUrl, "/v1/text/comments", { sourcePost });
+    assert.equal(cached.status, 200);
+    assert.equal(upstreamCalls, 1, "成功结果在 TTL 内应直接复用");
+
+    await new Promise((resolve) => setTimeout(resolve, 55));
+    const afterTtl = await postJson(baseUrl, "/v1/text/comments", { sourcePost });
+    assert.equal(afterTtl.status, 200);
+    assert.equal(upstreamCalls, 2, "TTL 到期后应重新调用上游");
+  });
+});
+
+test("bridge 失败后立即释放相同请求并允许重试", async () => {
+  let upstreamCalls = 0;
+  await withBridge({
+    apiKey: "test-only-key",
+    baseUrl: "https://upstream.invalid/v1",
+    extensionId: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    upstreamFetch: async () => {
+      upstreamCalls += 1;
+      if (upstreamCalls === 1) {
+        return new Response(JSON.stringify({ error: { message: "temporary" } }), {
+          status: 502,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      return upstreamResponse({
+        comments: [
+          { title: "观点补充", text: "重试成功一" },
+          { title: "开放提问", text: "重试成功二" },
+          { title: "实践计划", text: "重试成功三" }
+        ]
+      });
+    }
+  }, async (baseUrl) => {
+    const failed = await postJson(baseUrl, "/v1/text/comments", { sourcePost });
+    assert.equal(failed.status, 502);
+    const retried = await postJson(baseUrl, "/v1/text/comments", { sourcePost });
+    assert.equal(retried.status, 200);
+    assert.equal(upstreamCalls, 2, "失败结果不得进入成功复用窗口");
+  });
+});
+
+test("bridge 不会让不同输入或不同接口互相拦截", async () => {
+  const gate = deferred();
+  const requestBodies = [];
+  await withBridge({
+    apiKey: "test-only-key",
+    baseUrl: "https://upstream.invalid/v1",
+    extensionId: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    upstreamFetch: async (_url, init) => {
+      const body = JSON.parse(init.body);
+      requestBodies.push(body);
+      await gate.promise;
+      const system = body.messages[0].content;
+      if (system.includes("X 评论助手")) {
+        return upstreamResponse({
+          comments: [
+            { title: "观点补充", text: "不同输入一" },
+            { title: "开放提问", text: "不同输入二" },
+            { title: "实践计划", text: "不同输入三" }
+          ]
+        });
+      }
+      return upstreamResponse({
+        sourceSummary: "不同接口",
+        mechanisms: [1, 2, 3].map((index) => ({ id: `m${index}`, label: `机制 ${index}`, detail: `说明 ${index}` })),
+        scriptIdeas: [1, 2, 3].map((index) => ({ id: `s${index}`, label: `脚本 ${index}`, detail: `说明 ${index}` }))
+      });
+    }
+  }, async (baseUrl) => {
+    const requests = [
+      postJson(baseUrl, "/v1/text/comments", { sourcePost, replyLanguage: "en" }),
+      postJson(baseUrl, "/v1/text/comments", { sourcePost, replyLanguage: "ja" }),
+      postJson(baseUrl, "/v1/text/inspiration", { sourcePost })
+    ];
+    try {
+      await waitFor(() => requestBodies.length === 3, "没有等到三个独立上游请求");
+      assert.equal(requestBodies.length, 3, "不同输入以及不同接口应各自调用上游");
+    } finally {
+      gate.resolve();
+    }
+    const responses = await Promise.all(requests);
+    assert.ok(responses.every((response) => response.status === 200));
   });
 });

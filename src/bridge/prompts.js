@@ -38,6 +38,8 @@ export function visionMessages({ sourcePost, scenes, contactSheets, analysisProm
       const scene = scenes.find((item) => item.id === sceneId);
       return (scene?.frameTimes || []).map((timeSeconds, frameIndex) => ({
         scene: scene?.index,
+        clipStartSeconds: scene?.startSeconds,
+        clipEndSeconds: scene?.endSeconds,
         phase: ["早", "中", "晚"][frameIndex],
         timeSeconds
       }));
@@ -46,7 +48,7 @@ export function visionMessages({ sourcePost, scenes, contactSheets, analysisProm
   return [
     {
       role: "system",
-      content: "你是短视频视觉拆解与复刻助手。每张视频输入图是 3×3 九宫格，每连续三格属于同一场景的早、中、晚采样。只描述可见变化，不推断未观察到的连续动作或音频。用户的替换说明和参考图优先于原视频中的产品、人物、文案与场地；保留原视频结构，但不得把被要求替换的元素继续写进最终 Prompt。返回严格 JSON：summary；structure{hook,progression,ending,pace}；scenes[{index,timeRange,visibleChange,visualStyle,transition}]；medeoPrompt。medeoPrompt 必须是可直接交给 AI Video 模型执行的中文完整提示词。"
+      content: "你是短视频视觉标注与复刻助手。先结合原帖正文和九宫格分析内容。sourceAnalysis.claimedModel 可列出多个模型，但只允许填写原帖正文、可见字幕或水印明确出现的生成模型名；没有明确证据必须写“未识别”，禁止按风格猜测。每张视频输入图是 3×3 九宫格，每连续三格属于同一 clip 的早、中、晚采样。必须为输入中的每个 clip 返回一条标注，说明这段讲什么、叙事作用、可见字幕、可见变化、视觉风格和转场；不要自行生成时间，bridge 会使用本机检测到的起止时间。只描述可见变化，不推断未观察到的连续动作或音频。用户的替换说明和参考图优先于原视频中的产品、人物、文案与场地；保留原视频结构，但不得把被要求替换的元素继续写进最终 Prompt。返回严格 JSON：summary；sourceAnalysis{postSummary,claimedModel,modelEvidence,confidence}；structure{hook,progression,ending,pace}；clips[{index,whatHappens,narrativeRole,visibleText,visibleChange,visualStyle,transition}]；medeoPrompt。medeoPrompt 必须是可直接交给 AI Video 模型执行的中文完整提示词。"
     },
     {
       role: "user",
