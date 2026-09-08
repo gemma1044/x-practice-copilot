@@ -8,6 +8,8 @@
 
 **挂载点**：继续复用视频 tab、`LoopbackMediaConnector`、`VisionAnalysisConnector` 与 `127.0.0.1:4317`。`src/bridge/media.js` 返回场景、三帧时间点和九宫格；`/v1/vision/analyze` 把原帖正文、场景映射和九宫格一并交给 Gemini，并由 bridge 用本机起止时间覆盖模型时间；侧栏展示来源模型判断和逐 clip 时间轴，不把 3N 张单帧逐张传给模型。
 
+**开发更新**：`scripts/watch-extension.js` 监听既有 `src/` 与 `manifest.json`，变化后覆盖同步到原 `dist/x-practice-copilot-extension`。Chrome 仍由用户点击刷新加载，避免插件自行重载打断操作。
+
 **本机配置入口**：项目根目录 `.env` 是唯一 Key 填写位置，已被 Git 忽略；`npm run bridge` 自动加载它。`.env.example` 只保存空 Key、固定 Merouter Base URL 和当前打包目录的扩展 ID，便于恢复配置结构。扩展前端仍不读取、保存或转发 Key。
 
 ## 兜底与边界

@@ -12,7 +12,9 @@ test("视频 MVP 只从当前帖子进入本机下载与截帧", () => {
   assert.match(videoPanel, /九宫格/u);
   assert.match(videoPanel, /Gemini 3\.7 Flash/u);
   assert.match(videoPanel, /替换说明|reference-assets/u);
-  assert.match(videoPanel, /编辑 Gemini 分析 Prompt/u);
+  assert.match(videoPanel, /高级设置 · Gemini Prompt/u);
   assert.match(videoPanel, /视频处理说明/u);
   assert.match(videoPanel, /逐 clip 标注/u);
+  assert.match(html, /id="output-shell" hidden/u);
+  assert.doesNotMatch(videoPanel, /action-with-help/u);
 });

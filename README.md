@@ -35,7 +35,9 @@ npm run package:extension
 3. 选择生成目录：`/Users/gemma/Projects/x-practice-copilot/dist/x-practice-copilot-extension`。
 4. 打开 `https://x.com`，在任一已渲染帖子的操作区点击“AI 评论 / 收为灵感 / 拆解视频”。
 
-扩展不会自动发布评论。真实 AI 未配置时会明确显示未配置；灵感只写入浏览器 `chrome.storage.local`。视频 MVP 只处理用户主动确认的单条公开视频：本机 `yt-dlp` 临时下载，FFmpeg 识别场景并在每个场景均匀截取早、中、晚 3 帧，每 3 个场景合成一张九宫格；用户确认后由 Merouter `gemini-3.7-flash` 分析。原视频和单帧不上传且处理后立即清理；默认不读取登录 Cookie，不批量抓取。修改文件后，在扩展管理页点击“重新加载”再刷新 X 页面。
+开发时运行 `npm run dev:extension`，源码或 Manifest 变化会自动同步到上述目录；之后在扩展管理页点击刷新即可载入最新代码，无需再次手动打包。
+
+扩展不会自动发布评论。真实 AI 未配置时会明确显示未配置；灵感只写入浏览器 `chrome.storage.local`。视频 MVP 只处理用户主动确认的单条公开视频：本机 `yt-dlp` 临时下载，FFmpeg 识别场景并在每个场景均匀截取早、中、晚 3 帧，每 3 个场景合成一张九宫格；用户确认后由 Merouter `gemini-3.7-flash` 分析。原视频和单帧不上传且处理后立即清理；默认不读取登录 Cookie，不批量抓取。
 
 ## 测试
 
