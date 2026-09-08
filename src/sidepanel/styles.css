@@ -106,7 +106,7 @@ label textarea:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--
 .dropzone { display: grid; place-items: center; gap: 5px; min-height: 135px; border: 1px dashed #bcb4a4; border-radius: 15px; background: #faf7f0; cursor: pointer; text-align: center; }
 .dropzone input { position: absolute; opacity: 0; pointer-events: none; }
 .upload-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: var(--orange-soft); color: var(--orange); font-size: 20px; }
-.dropzone small, .output-shell small { color: var(--muted); font-size: 10px; font-weight: 500; }
+.dropzone small { color: var(--muted); font-size: 10px; font-weight: 500; }
 .file-summary { min-height: 16px; margin: 10px 0 12px; color: var(--muted); font-size: 11px; line-height: 16px; }
 .file-list { display: grid; gap: 7px; margin: 0 0 12px; padding: 0; list-style: none; }
 .file-item { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 7px; background: #fff; }
@@ -133,8 +133,6 @@ label textarea:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--
 .prompt-editor { flex: 1; min-width: 0; margin: 0; }
 .prompt-editor summary { cursor: pointer; color: var(--muted); font-size: 11px; font-weight: 800; }
 .prompt-editor textarea { width: 100%; min-height: 150px; margin-top: 9px; border: 1px solid var(--line); border-radius: 11px; background: #fff; padding: 10px; font-size: 11px; line-height: 1.55; resize: vertical; }
-.output-shell { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
-.output-shell textarea { width: 100%; min-height: 190px; margin: 8px 0; border: 1px solid var(--line); border-radius: 11px; background: #f9f7f1; padding: 10px; color: #555149; font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
 .toast { position: fixed; right: 18px; bottom: 18px; left: 18px; z-index: 10; opacity: 0; transform: translateY(8px); border-radius: 11px; background: var(--ink); color: #fff; padding: 10px 12px; pointer-events: none; text-align: center; font-size: 11px; transition: 160ms ease; }
 .toast.show { opacity: 1; transform: translateY(0); }
 .help-tip { position: relative; display: inline-grid; place-items: center; }
@@ -142,14 +140,21 @@ label textarea:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--
 .help-tip > button:hover { border-color: var(--orange); color: var(--orange); background: var(--orange-soft); }
 .help-tip [role="tooltip"] { position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 20; width: 220px; opacity: 0; transform: translateY(4px); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--ink); color: #fff; padding: 9px 10px; pointer-events: none; box-shadow: var(--shadow-floating); font-size: 11px; font-weight: 500; line-height: 1.45; transition: opacity var(--duration-fast) ease, transform var(--duration-fast) ease; }
 .help-tip:hover [role="tooltip"], .help-tip:focus-within [role="tooltip"] { opacity: 1; transform: translateY(0); }
-.analysis-result { margin-top: 16px; border: 1px solid var(--line); border-radius: var(--radius-surface); background: var(--surface-subtle); overflow: hidden; }
-.analysis-result header { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); padding: 11px 12px; font-size: 11px; font-weight: 800; }
-.analysis-result header span:last-child { color: var(--orange); font-size: 10px; }
-.analysis-result > p { margin: 0; padding: 11px 12px; color: var(--muted); font-size: 11px; line-height: 1.5; }
-.analysis-result ol { margin: 0; padding: 0; list-style: none; }
-.analysis-result li { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 10px; border-top: 1px solid var(--line); padding: 10px 12px; }
-.analysis-result time { color: var(--muted); font: 600 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
-.analysis-result li div { display: grid; gap: 3px; min-width: 0; }
-.analysis-result li b { font-size: 11px; line-height: 1.4; }
-.analysis-result li span { color: var(--muted); font-size: 10px; line-height: 1.4; }
+.takeaway-shell { margin-top: 16px; border: 1px solid var(--line); border-radius: var(--radius-surface); background: var(--surface-subtle); overflow: hidden; }
+.takeaway-shell header { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding: 11px 12px; }
+.takeaway-shell header div { display: grid; gap: 2px; min-width: 0; font-size: 11px; font-weight: 800; }
+.takeaway-shell header small { overflow: hidden; color: var(--orange); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.takeaway-shell header button { flex: none; min-height: 32px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); cursor: pointer; padding: 5px 9px; font-size: 10px; font-weight: 800; }
+.takeaway-shell header button:hover { border-color: var(--orange); color: var(--orange); }
+.takeaway-shell header button:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.takeaway-shell > p { margin: 0; padding: 11px 12px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.takeaway-shell ol { margin: 0; padding: 0; list-style: none; }
+.takeaway-shell li { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 10px; border-top: 1px solid var(--line); padding: 10px 12px; }
+.takeaway-shell time { color: var(--muted); font: 600 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.takeaway-shell li div { display: grid; gap: 3px; min-width: 0; }
+.takeaway-shell li b { font-size: 11px; line-height: 1.4; }
+.takeaway-shell li span { color: var(--muted); font-size: 10px; line-height: 1.4; }
+.takeaway-prompt { display: grid; gap: 8px; border-top: 1px solid var(--line); padding: 12px; }
+.takeaway-prompt b { font-size: 11px; }
+.takeaway-prompt p { margin: 0; color: #555149; font: 10px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

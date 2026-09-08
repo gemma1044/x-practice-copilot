@@ -14,6 +14,9 @@ const state = {
   contactSheets: [],
   referenceAssets: [],
   actionGuards: new Map(),
+  videoTakeawayText: "",
+  videoAnalysisGenerated: false,
+  videoOutputDirty: false,
   videoDurationSeconds: 0,
   commentsGeneratedFor: null,
   inspirationGeneratedFor: null,
@@ -82,7 +85,6 @@ function renderSource() {
   $("#source-text").textContent = context.text || "未读取到正文；仅保留了来源链接。";
   $("#source-link").href = context.url;
   $("#source-scope").textContent = context.contextScope || "仅当前可见帖子";
-  renderMedeoPrompt();
 }
 
 function renderDrafts(drafts) {
@@ -220,12 +222,6 @@ async function restorePracticeWorkspace() {
   renderPracticeWorkspace();
 }
 
-function renderMedeoPrompt() {
-  const source = state.context?.url || "[来源帖子链接]";
-  const timepoints = state.scenes.flatMap((scene) => scene.frameTimes).map((time) => `${time.toFixed(1)}s`).join("、") || "[待本机截帧]";
-  $("#medeo-prompt").value = `请根据用户确认的代表帧复刻一条短视频。\n\n来源：${source}\n本机截帧时间点：${timepoints}\n\n【创意目标】\n[待视觉分析后填写：核心信息与观看动机]\n\n【画面与版式】\n[待填写：画幅、字体层级、字幕安全区、色彩与构图]\n\n【镜头顺序】\n[待填写：每张代表帧对应的画面、字幕、动效与素材]\n\n【成片要求】\n只依据确认帧描述可见画面；不推断音频；生成前由用户确认最终 prompt。`;
-}
-
 function renderContactSheets() {
   const selectedCount = state.contactSheets.filter((sheet) => sheet.selected).length;
   const frameCount = state.scenes.length * 3;
@@ -246,6 +242,7 @@ function renderContactSheets() {
     input.setAttribute("aria-label", `选择第 ${index + 1} 张九宫格`);
     input.addEventListener("change", () => {
       sheet.selected = input.checked;
+      markVideoOutputDirty();
       renderContactSheets();
     });
     const name = document.createElement("span");
@@ -262,11 +259,54 @@ function formatTime(seconds) {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
-function renderVideoAnalysis(result) {
-  const shell = $("#video-analysis");
+function buildVideoTakeawayText(result) {
   const source = result.sourceAnalysis;
-  $("#source-model").textContent = `模型 · ${source.claimedModel} · ${source.confidence}`;
-  $("#source-model").title = source.modelEvidence;
+  const replacementBrief = $("#replacement-brief").value.trim();
+  const referenceNames = state.referenceAssets.map((asset) => asset.name).join("、");
+  const clipText = result.clips.map((clip) => [
+    `[${formatTime(clip.startSeconds)}–${formatTime(clip.endSeconds)}] ${clip.narrativeRole}`,
+    `画面：${clip.whatHappens}`,
+    clip.visibleText ? `字幕：${clip.visibleText}` : "",
+    clip.visibleChange ? `变化：${clip.visibleChange}` : "",
+    clip.visualStyle ? `风格：${clip.visualStyle}` : "",
+    clip.transition ? `转场：${clip.transition}` : ""
+  ].filter(Boolean).join("\n")).join("\n\n");
+  return [
+    "【来源分析】",
+    `来源：${state.context?.url || "未记录"}`,
+    `摘要：${source.postSummary || result.summary}`,
+    `模型：${source.claimedModel}（置信度：${source.confidence}）`,
+    `依据：${source.modelEvidence}`,
+    "",
+    "【时间轴分镜】",
+    clipText,
+    "",
+    "【替换要求】",
+    replacementBrief || "未指定，沿用原视频中的可见内容。",
+    referenceNames ? `参考图：${referenceNames}` : "",
+    "",
+    "【生成 Prompt】",
+    result.medeoPrompt
+  ].filter((line, index, lines) => line !== "" || lines[index - 1] !== "").join("\n").trim();
+}
+
+function updateAnalyzeButtonLabel() {
+  const button = $("#analyze-video");
+  if (button.getAttribute("aria-busy") === "true") return;
+  button.textContent = state.videoOutputDirty ? "更新拆解稿" : state.videoAnalysisGenerated ? "重新生成拆解稿" : "生成完整拆解稿";
+}
+
+function markVideoOutputDirty() {
+  if (!state.videoAnalysisGenerated) return;
+  state.videoOutputDirty = true;
+  updateAnalyzeButtonLabel();
+}
+
+function renderVideoTakeaway(result) {
+  const shell = $("#video-takeaway");
+  const source = result.sourceAnalysis;
+  $("#takeaway-model").textContent = `模型 · ${source.claimedModel} · ${source.confidence}`;
+  $("#takeaway-model").title = source.modelEvidence;
   $("#source-analysis-summary").textContent = source.postSummary || result.summary;
   const items = result.clips.map((clip) => {
     const item = document.createElement("li");
@@ -282,8 +322,12 @@ function renderVideoAnalysis(result) {
     return item;
   });
   $("#clip-annotations").replaceChildren(...items);
+  $("#takeaway-prompt").textContent = result.medeoPrompt;
+  state.videoTakeawayText = buildVideoTakeawayText(result);
+  state.videoAnalysisGenerated = true;
+  state.videoOutputDirty = false;
   shell.hidden = false;
-  $("#output-shell").hidden = false;
+  updateAnalyzeButtonLabel();
 }
 
 async function refreshTextStatus() {
@@ -333,8 +377,10 @@ async function loadContext() {
     $("#text-connector-notice").textContent = "尚未调用 AI，不会用本地模板冒充模型结果。";
     state.referenceAssets = [];
     $("#replacement-brief").value = "";
-    $("#video-analysis").hidden = true;
-    $("#output-shell").hidden = true;
+    state.videoTakeawayText = "";
+    state.videoAnalysisGenerated = false;
+    state.videoOutputDirty = false;
+    $("#video-takeaway").hidden = true;
     renderReferenceAssets();
   }
   state.context = nextContext;
@@ -439,8 +485,8 @@ $("#prepare-video").addEventListener("click", async () => {
     state.scenes = result.scenes;
     state.contactSheets = result.contactSheets.map((sheet) => ({ ...sheet, selected: true }));
     state.videoDurationSeconds = result.durationSeconds;
+    markVideoOutputDirty();
     renderContactSheets();
-    renderMedeoPrompt();
     $("#media-status").textContent = isDemo ? "DEMO 已截帧" : "本机已截帧";
     $("#media-status").className = "status local";
     $("#media-notice").hidden = true;
@@ -473,6 +519,7 @@ function renderReferenceAssets() {
     remove.textContent = "移除";
     remove.addEventListener("click", () => {
       state.referenceAssets.splice(index, 1);
+      markVideoOutputDirty();
       renderReferenceAssets();
     });
     item.append(preview, name, remove);
@@ -497,6 +544,7 @@ $("#reference-assets").addEventListener("change", async (event) => {
       reader.addEventListener("error", () => reject(reader.error));
       reader.readAsDataURL(file);
     })));
+    markVideoOutputDirty();
     renderReferenceAssets();
   } catch {
     showToast("参考图读取失败，请重新选择。 ");
@@ -523,9 +571,8 @@ $("#analyze-video").addEventListener("click", async () => {
   const button = $("#analyze-video");
   button.disabled = true;
   button.setAttribute("aria-busy", "true");
-  button.textContent = "Gemini 正在分析…";
+  button.textContent = state.videoAnalysisGenerated ? "正在更新拆解稿…" : "正在生成拆解稿…";
   $("#vision-notice").hidden = true;
-  $("#video-analysis").hidden = true;
   try {
     const result = await visionConnector.analyzeVideo({
       contactSheets,
@@ -535,9 +582,8 @@ $("#analyze-video").addEventListener("click", async () => {
       replacementBrief: $("#replacement-brief").value,
       referenceImages: state.referenceAssets
     });
-    renderVideoAnalysis(result);
-    $("#medeo-prompt").value = result.medeoPrompt;
-    showToast("视觉拆解与 Medeo prompt 已生成。 ");
+    renderVideoTakeaway(result);
+    showToast("完整拆解稿已生成。 ");
     successful = true;
   } catch (error) {
     $("#vision-notice").classList.remove("success");
@@ -548,11 +594,13 @@ $("#analyze-video").addEventListener("click", async () => {
     finishAction(action, successful);
     button.removeAttribute("aria-busy");
     button.disabled = false;
-    button.textContent = "分析所选九宫格";
+    updateAnalyzeButtonLabel();
   }
 });
 
-$("#copy-medeo").addEventListener("click", () => copyText($("#medeo-prompt").value, "Medeo prompt 框架已复制。"));
+$("#replacement-brief").addEventListener("input", markVideoOutputDirty);
+$("#analysis-prompt").addEventListener("input", markVideoOutputDirty);
+$("#copy-takeaway").addEventListener("click", () => copyText(state.videoTakeawayText, "完整拆解稿已复制。"));
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && (changes.xpc_current_context || changes.xpc_current_mode)) loadContext();
