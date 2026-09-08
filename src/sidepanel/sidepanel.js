@@ -283,6 +283,7 @@ function renderVideoAnalysis(result) {
   });
   $("#clip-annotations").replaceChildren(...items);
   shell.hidden = false;
+  $("#output-shell").hidden = false;
 }
 
 async function refreshTextStatus() {
@@ -332,6 +333,8 @@ async function loadContext() {
     $("#text-connector-notice").textContent = "尚未调用 AI，不会用本地模板冒充模型结果。";
     state.referenceAssets = [];
     $("#replacement-brief").value = "";
+    $("#video-analysis").hidden = true;
+    $("#output-shell").hidden = true;
     renderReferenceAssets();
   }
   state.context = nextContext;
@@ -427,6 +430,7 @@ $("#prepare-video").addEventListener("click", async () => {
   let successful = false;
   const button = $("#prepare-video");
   button.disabled = true;
+  button.setAttribute("aria-busy", "true");
   button.textContent = "正在下载并截帧…";
   $("#media-notice").hidden = false;
   $("#media-notice").textContent = "正在本机串行处理；请勿连续触发。";
@@ -448,6 +452,7 @@ $("#prepare-video").addEventListener("click", async () => {
     showToast(error.code === "MEDIA_RATE_LIMITED" ? "X 已限流，请停止重试。" : "本机截帧未完成。 ");
   } finally {
     finishAction(action, successful);
+    button.removeAttribute("aria-busy");
     button.disabled = false;
     button.textContent = state.contactSheets.length ? "重新下载并截帧" : "下载并本地截帧";
   }
@@ -517,6 +522,7 @@ $("#analyze-video").addEventListener("click", async () => {
   let successful = false;
   const button = $("#analyze-video");
   button.disabled = true;
+  button.setAttribute("aria-busy", "true");
   button.textContent = "Gemini 正在分析…";
   $("#vision-notice").hidden = true;
   $("#video-analysis").hidden = true;
@@ -540,6 +546,7 @@ $("#analyze-video").addEventListener("click", async () => {
     showToast("视觉分析未完成，九宫格仍保留。 ");
   } finally {
     finishAction(action, successful);
+    button.removeAttribute("aria-busy");
     button.disabled = false;
     button.textContent = "分析所选九宫格";
   }
