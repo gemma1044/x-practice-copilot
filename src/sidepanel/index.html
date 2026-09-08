@@ -96,17 +96,14 @@
           <details class="prompt-editor"><summary>高级设置 · Gemini Prompt</summary><textarea id="analysis-prompt" maxlength="6000">先结合原帖正文分析主题，并找出正文、可见字幕或水印明确提到的生成模型；没有证据就标注“未识别”。按每个 clip 说明这一段讲什么、叙事作用、可见字幕、主体变化、画面风格和转场。严格区分可见事实与推断，不推断音频或采样帧之间未观察到的连续动作。最终输出一份可直接交给 AI Video 模型的中文生成 Prompt：保留原视频的有效结构和节奏；如果提供了替换说明或参考图，用用户内容替换原元素。</textarea></details>
           <span class="help-tip"><button type="button" aria-label="视觉分析说明" aria-describedby="vision-help">!</button><span id="vision-help" role="tooltip">Gemini 3.7 Flash 只接收已选择的九宫格与参考图。</span></span>
         </div>
-        <button class="primary" id="analyze-video" aria-describedby="vision-help" disabled>分析所选九宫格</button>
+        <button class="primary" id="analyze-video" aria-describedby="vision-help" disabled>生成完整拆解稿</button>
         <div class="notice" id="vision-notice" hidden aria-live="polite"></div>
-        <section class="analysis-result" id="video-analysis" hidden aria-live="polite">
-          <header><span>视频标注</span><span id="source-model"></span></header>
+        <section class="takeaway-shell" id="video-takeaway" hidden aria-live="polite">
+          <header><div><span>完整拆解稿</span><small id="takeaway-model"></small></div><button id="copy-takeaway">复制全部</button></header>
           <p id="source-analysis-summary"></p>
           <ol id="clip-annotations" aria-label="逐 clip 标注"></ol>
+          <div class="takeaway-prompt"><b>生成 Prompt</b><p id="takeaway-prompt"></p></div>
         </section>
-        <div class="output-shell" id="output-shell" hidden>
-          <div class="output-title"><span>Medeo Prompt</span><button id="copy-medeo">复制</button></div>
-          <textarea id="medeo-prompt" aria-label="Medeo prompt"></textarea>
-        </div>
       </section>
 
       <div class="toast" id="toast" role="status" aria-live="polite"></div>
