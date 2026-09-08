@@ -91,7 +91,7 @@ test("Demo 完成灵感、实践、证据、草稿与本机截帧主路径", { t
   await panel.getByText("6 个场景 · 18 帧 · 2 张九宫格").waitFor();
   assert.equal(await panel.locator(".contact-sheet").count(), 2);
   await panel.getByLabel("选择第 1 张九宫格").uncheck();
-  assert.equal(await panel.getByRole("button", { name: "用选中的九宫格分析" }).isEnabled(), true);
+  assert.equal(await panel.getByRole("button", { name: "分析所选九宫格" }).isEnabled(), true);
   await panel.getByLabel("替换说明").fill("把产品替换成我的银色耳机，场地换成海边日落");
   await panel.locator("#reference-assets").setInputFiles({
     name: "headphones.png",
@@ -99,8 +99,9 @@ test("Demo 完成灵感、实践、证据、草稿与本机截帧主路径", { t
     buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64")
   });
   await panel.getByText("headphones.png").waitFor();
-  await panel.getByRole("button", { name: "用选中的九宫格分析" }).click();
-  await panel.getByText("Gemini 3.7 Flash：", { exact: false }).waitFor();
+  await panel.getByRole("button", { name: "分析所选九宫格" }).click();
+  await panel.getByText("模型 · MiniMax H3 + Midjourney v8.2 · 高").waitFor();
+  assert.equal(await panel.locator("#clip-annotations li").count(), 6);
   assert.match(await panel.getByLabel("Medeo prompt").inputValue(), /30 秒竖屏时尚短片/u);
   assert.match(await panel.getByLabel("Medeo prompt").inputValue(), /银色耳机/u);
 });

@@ -1,6 +1,6 @@
 const MAX_SOURCE_TEXT = 12_000;
 const REPLY_LANGUAGES = new Set(["zh-CN", "en", "ja", "ko", "es", "same-as-source"]);
-const DEFAULT_VISION_ANALYSIS_PROMPT = "分析开头钩子、场景顺序、镜头景别、主体位置变化、画面风格、可见文案、转场与结尾，并输出可直接交给 AI Video 模型的中文生成 Prompt；有替换要求时用用户内容替换原元素。";
+const DEFAULT_VISION_ANALYSIS_PROMPT = "结合原帖正文分析内容和明确提到的生成模型；按每个 clip 输出内容、叙事作用、可见字幕、主体变化、画面风格和转场，并生成可直接交给 AI Video 模型的中文 Prompt；有替换要求时用用户内容替换原元素。";
 
 export class BridgeProtocolError extends Error {
   constructor(message, code = "INVALID_REQUEST", status = 400) {
@@ -81,6 +81,15 @@ export function normalizeVisionRequest(input) {
       dataUrl
     };
   });
+  const selectedSceneIds = new Set(normalizedSheets.flatMap((sheet) => sheet.sceneIds));
+  const normalizedScenes = scenes.slice(0, 15).map((scene, index) => ({
+    id: String(scene?.id || `scene-${index + 1}`),
+    index: Number(scene?.index || index + 1),
+    startSeconds: Number(scene?.startSeconds || 0),
+    endSeconds: Number(scene?.endSeconds || 0),
+    frameTimes: Array.isArray(scene?.frameTimes) ? scene.frameTimes.slice(0, 3).map(Number) : []
+  })).filter((scene) => selectedSceneIds.has(scene.id));
+  if (!normalizedScenes.length) throw new BridgeProtocolError("九宫格没有对应的 clip 时间信息", "INVALID_VISION_INPUT");
   return {
     sourcePost,
     analysisPrompt,
@@ -92,13 +101,7 @@ export function normalizeVisionRequest(input) {
       }
       return { name: String(image?.name || `参考图 ${index + 1}`), dataUrl };
     }),
-    scenes: scenes.slice(0, 15).map((scene, index) => ({
-      id: String(scene?.id || `scene-${index + 1}`),
-      index: Number(scene?.index || index + 1),
-      startSeconds: Number(scene?.startSeconds || 0),
-      endSeconds: Number(scene?.endSeconds || 0),
-      frameTimes: Array.isArray(scene?.frameTimes) ? scene.frameTimes.slice(0, 3).map(Number) : []
-    })),
+    scenes: normalizedScenes,
     contactSheets: normalizedSheets
   };
 }
@@ -149,31 +152,54 @@ export function validateInspiration(value) {
   };
 }
 
-export function validateVisionAnalysis(value) {
+export function validateVisionAnalysis(value, expectedScenes = []) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new BridgeProtocolError("视觉模型结果必须是对象", "INVALID_MODEL_OUTPUT", 502);
   }
   const summary = String(value.summary || "").trim();
   const medeoPrompt = String(value.medeoPrompt || "").trim();
-  const scenes = Array.isArray(value.scenes) ? value.scenes : [];
-  if (!summary || !medeoPrompt || !scenes.length) {
-    throw new BridgeProtocolError("视觉模型结果缺少摘要、场景或 Medeo prompt", "INVALID_MODEL_OUTPUT", 502);
+  const sourceAnalysis = value.sourceAnalysis;
+  const clips = Array.isArray(value.clips) ? value.clips : [];
+  if (!summary || !medeoPrompt || !sourceAnalysis || !clips.length) {
+    throw new BridgeProtocolError("视觉模型结果缺少来源分析、clip 标注或 Medeo prompt", "INVALID_MODEL_OUTPUT", 502);
   }
+  if (expectedScenes.length && clips.length !== expectedScenes.length) {
+    throw new BridgeProtocolError("视觉模型没有逐一返回全部 clip", "INVALID_MODEL_OUTPUT", 502);
+  }
+  const normalizedClips = clips.slice(0, 15).map((clip, index) => {
+    const expected = expectedScenes.find((scene) => Number(scene.index) === Number(clip?.index)) || expectedScenes[index];
+    const whatHappens = String(clip?.whatHappens || "").trim();
+    const narrativeRole = String(clip?.narrativeRole || "").trim();
+    if (!whatHappens || !narrativeRole) {
+      throw new BridgeProtocolError(`第 ${index + 1} 个 clip 缺少内容或叙事作用`, "INVALID_MODEL_OUTPUT", 502);
+    }
+    return {
+      index: Number(expected?.index || clip?.index || index + 1),
+      startSeconds: Number(expected?.startSeconds || 0),
+      endSeconds: Number(expected?.endSeconds || 0),
+      whatHappens,
+      narrativeRole,
+      visibleText: String(clip?.visibleText || "").trim(),
+      visibleChange: String(clip?.visibleChange || "").trim(),
+      visualStyle: String(clip?.visualStyle || "").trim(),
+      transition: String(clip?.transition || "").trim()
+    };
+  });
   return {
     summary,
+    sourceAnalysis: {
+      postSummary: String(sourceAnalysis.postSummary || "").trim(),
+      claimedModel: String(sourceAnalysis.claimedModel || "未识别").trim() || "未识别",
+      modelEvidence: String(sourceAnalysis.modelEvidence || "未发现明确模型信息").trim(),
+      confidence: new Set(["高", "中", "低"]).has(sourceAnalysis.confidence) ? sourceAnalysis.confidence : "低"
+    },
     structure: {
       hook: String(value.structure?.hook || "").trim(),
       progression: String(value.structure?.progression || "").trim(),
       ending: String(value.structure?.ending || "").trim(),
       pace: String(value.structure?.pace || "").trim()
     },
-    scenes: scenes.slice(0, 15).map((scene, index) => ({
-      index: Number(scene?.index || index + 1),
-      timeRange: String(scene?.timeRange || "").trim(),
-      visibleChange: String(scene?.visibleChange || "").trim(),
-      visualStyle: String(scene?.visualStyle || "").trim(),
-      transition: String(scene?.transition || "").trim()
-    })),
+    clips: normalizedClips,
     medeoPrompt
   };
 }

@@ -13,6 +13,7 @@ const state = {
   scenes: [],
   contactSheets: [],
   referenceAssets: [],
+  actionGuards: new Map(),
   videoDurationSeconds: 0,
   commentsGeneratedFor: null,
   inspirationGeneratedFor: null,
@@ -23,6 +24,40 @@ const state = {
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
+const ACTION_COOLDOWN_MS = 3_000;
+
+function actionFingerprint(value) {
+  const textValue = JSON.stringify(value);
+  let hash = 2166136261;
+  for (let index = 0; index < textValue.length; index += 1) {
+    hash ^= textValue.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function beginAction(action, input) {
+  const signature = actionFingerprint(input);
+  const previous = state.actionGuards.get(action);
+  if (previous?.running || (previous?.signature === signature && Date.now() - previous.completedAt < ACTION_COOLDOWN_MS)) {
+    showToast(previous.running ? "相同操作正在处理中。" : "相同操作刚刚已完成，请稍后再试。 ");
+    return null;
+  }
+  const token = { action, signature };
+  state.actionGuards.set(action, { signature, running: true, completedAt: 0 });
+  return token;
+}
+
+function finishAction(token, successful) {
+  if (!token) return;
+  const current = state.actionGuards.get(token.action);
+  if (current?.signature !== token.signature) return;
+  if (!successful) {
+    state.actionGuards.delete(token.action);
+    return;
+  }
+  state.actionGuards.set(token.action, { signature: token.signature, running: false, completedAt: Date.now() });
+}
 
 function showToast(message) {
   const toast = $("#toast");
@@ -70,12 +105,15 @@ async function runCommentGeneration() {
   const notice = $("#text-connector-notice");
   const status = $("#comment-ai-status");
   if (!state.context) return showToast("请先从一条 X 帖子打开侧栏。 ");
+  const replyLanguage = $("#reply-language").value;
+  const action = beginAction("comments", { sourceId: state.context.id, replyLanguage });
+  if (!action) return;
+  let successful = false;
   button.disabled = true;
   button.textContent = "AI 正在生成…";
   notice.classList.remove("success");
   notice.textContent = isDemo ? "Demo AI 正在生成三个评论角度…" : "正在请求文字 AI…";
   try {
-    const replyLanguage = $("#reply-language").value;
     const drafts = await textConnector.generateComments({ sourcePost: state.context, replyLanguage });
     renderDrafts(drafts);
     state.commentsGeneratedFor = `${state.context.id}:${replyLanguage}`;
@@ -83,11 +121,13 @@ async function runCommentGeneration() {
     status.className = "status local";
     notice.classList.add("success");
     notice.textContent = isDemo ? "固定的 Demo AI 模拟结果；不是一次真实模型调用。" : "AI 草稿已生成，请编辑后再复制。";
+    successful = true;
   } catch (error) {
     status.textContent = "AI 不可用";
     status.className = "status warning";
     notice.textContent = `${error.message}。${error.nextStep || ""}`;
   } finally {
+    finishAction(action, successful);
     button.disabled = false;
     button.textContent = state.commentsGeneratedFor ? "重新用 AI 生成" : "用 AI 生成 3 个角度";
   }
@@ -117,6 +157,9 @@ async function runInspirationGeneration() {
   const button = $("#generate-inspiration");
   const status = $("#inspiration-ai-status");
   if (!state.context) return showToast("请先从一条 X 帖子打开侧栏。 ");
+  const action = beginAction("inspiration", { sourceId: state.context.id });
+  if (!action) return;
+  let successful = false;
   button.disabled = true;
   button.textContent = "生成中…";
   status.textContent = "AI 生成中";
@@ -129,11 +172,13 @@ async function runInspirationGeneration() {
     state.inspirationGeneratedFor = state.context.id;
     status.textContent = isDemo ? "DEMO AI" : "AI 已生成";
     status.className = "status local";
+    successful = true;
   } catch (error) {
     status.textContent = "AI 不可用";
     status.className = "status warning";
     showToast(`${error.message}。${error.nextStep || ""}`);
   } finally {
+    finishAction(action, successful);
     button.disabled = false;
     button.textContent = state.inspirationGeneratedFor === state.context?.id ? "换一组" : "AI 提炼";
   }
@@ -210,6 +255,34 @@ function renderContactSheets() {
     return item;
   });
   $("#frame-list").replaceChildren(...items);
+}
+
+function formatTime(seconds) {
+  const total = Math.max(0, Math.round(Number(seconds) || 0));
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function renderVideoAnalysis(result) {
+  const shell = $("#video-analysis");
+  const source = result.sourceAnalysis;
+  $("#source-model").textContent = `模型 · ${source.claimedModel} · ${source.confidence}`;
+  $("#source-model").title = source.modelEvidence;
+  $("#source-analysis-summary").textContent = source.postSummary || result.summary;
+  const items = result.clips.map((clip) => {
+    const item = document.createElement("li");
+    const time = document.createElement("time");
+    time.textContent = `${formatTime(clip.startSeconds)}–${formatTime(clip.endSeconds)}`;
+    const content = document.createElement("div");
+    const title = document.createElement("b");
+    title.textContent = clip.whatHappens;
+    const meta = document.createElement("span");
+    meta.textContent = [clip.narrativeRole, clip.visibleText ? `字幕：${clip.visibleText}` : ""].filter(Boolean).join(" · ");
+    content.append(title, meta);
+    item.append(time, content);
+    return item;
+  });
+  $("#clip-annotations").replaceChildren(...items);
+  shell.hidden = false;
 }
 
 async function refreshTextStatus() {
@@ -349,9 +422,13 @@ $("#build-evidence-draft").addEventListener("click", async () => {
 $("#prepare-video").addEventListener("click", async () => {
   if (!state.context?.url) return showToast("请先从一条 X 帖子打开侧栏。 ");
   if (!state.context.media?.hasVideo) return showToast("当前帖子没有检测到可处理的视频。 ");
+  const action = beginAction("prepare-video", { sourceUrl: state.context.url });
+  if (!action) return;
+  let successful = false;
   const button = $("#prepare-video");
   button.disabled = true;
   button.textContent = "正在下载并截帧…";
+  $("#media-notice").hidden = false;
   $("#media-notice").textContent = "正在本机串行处理；请勿连续触发。";
   try {
     const result = await mediaConnector.prepareVideo({ sourcePost: state.context });
@@ -362,13 +439,15 @@ $("#prepare-video").addEventListener("click", async () => {
     renderMedeoPrompt();
     $("#media-status").textContent = isDemo ? "DEMO 已截帧" : "本机已截帧";
     $("#media-status").className = "status local";
-    $("#media-notice").classList.add("success");
-    $("#media-notice").textContent = `已识别 ${result.scenes.length} 个场景，每场景 3 帧，合成 ${result.contactSheets.length} 张九宫格。`;
+    $("#media-notice").hidden = true;
+    successful = true;
   } catch (error) {
     $("#media-notice").classList.remove("success");
+    $("#media-notice").hidden = false;
     $("#media-notice").textContent = `${error.message}。${error.nextStep || ""}`;
     showToast(error.code === "MEDIA_RATE_LIMITED" ? "X 已限流，请停止重试。" : "本机截帧未完成。 ");
   } finally {
+    finishAction(action, successful);
     button.disabled = false;
     button.textContent = state.contactSheets.length ? "重新下载并截帧" : "下载并本地截帧";
   }
@@ -406,7 +485,10 @@ $("#reference-assets").addEventListener("change", async (event) => {
   try {
     state.referenceAssets = await Promise.all(valid.map((file) => new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.addEventListener("load", () => resolve({ name: file.name, dataUrl: reader.result }));
+      reader.addEventListener("load", () => {
+        const dataUrl = String(reader.result);
+        resolve({ name: file.name, dataUrl, fingerprint: actionFingerprint(dataUrl) });
+      });
       reader.addEventListener("error", () => reject(reader.error));
       reader.readAsDataURL(file);
     })));
@@ -420,9 +502,24 @@ $("#reference-assets").addEventListener("change", async (event) => {
 $("#analyze-video").addEventListener("click", async () => {
   const contactSheets = state.contactSheets.filter((sheet) => sheet.selected);
   if (!contactSheets.length) return showToast("请至少选择 1 张九宫格。 ");
+  const analysisInput = {
+    sheetIds: contactSheets.map((sheet) => sheet.id),
+    analysisPrompt: $("#analysis-prompt").value,
+    replacementBrief: $("#replacement-brief").value,
+    referenceImages: state.referenceAssets.map((asset) => ({
+      name: asset.name,
+      size: asset.dataUrl.length,
+      fingerprint: asset.fingerprint || actionFingerprint(asset.dataUrl)
+    }))
+  };
+  const action = beginAction("analyze-video", analysisInput);
+  if (!action) return;
+  let successful = false;
   const button = $("#analyze-video");
   button.disabled = true;
   button.textContent = "Gemini 正在分析…";
+  $("#vision-notice").hidden = true;
+  $("#video-analysis").hidden = true;
   try {
     const result = await visionConnector.analyzeVideo({
       contactSheets,
@@ -432,17 +529,19 @@ $("#analyze-video").addEventListener("click", async () => {
       replacementBrief: $("#replacement-brief").value,
       referenceImages: state.referenceAssets
     });
-    $("#vision-notice").classList.add("success");
-    $("#vision-notice").textContent = `Gemini 3.7 Flash：${result.summary}`;
+    renderVideoAnalysis(result);
     $("#medeo-prompt").value = result.medeoPrompt;
     showToast("视觉拆解与 Medeo prompt 已生成。 ");
+    successful = true;
   } catch (error) {
     $("#vision-notice").classList.remove("success");
+    $("#vision-notice").hidden = false;
     $("#vision-notice").textContent = `${error.message}。${error.nextStep || ""}`;
     showToast("视觉分析未完成，九宫格仍保留。 ");
   } finally {
+    finishAction(action, successful);
     button.disabled = false;
-    button.textContent = "用选中的九宫格分析";
+    button.textContent = "分析所选九宫格";
   }
 });
 

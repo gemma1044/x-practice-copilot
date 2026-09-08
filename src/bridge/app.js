@@ -1,10 +1,38 @@
 import http from "node:http";
+import { createHash } from "node:crypto";
 import { BridgeProtocolError, normalizeReplyLanguage, normalizeSourcePost, normalizeVideoRequest, normalizeVisionRequest, parseModelJson, validateComments, validateInspiration, validateVisionAnalysis } from "./protocol.js";
 import { commentMessages, inspirationMessages, visionMessages } from "./prompts.js";
 import { createLocalMediaService } from "./media.js";
 
 const BODY_LIMIT = 64 * 1024;
 const VISION_BODY_LIMIT = 40 * 1024 * 1024;
+
+function requestFingerprint(pathname, input) {
+  return createHash("sha256").update(pathname).update("\0").update(JSON.stringify(input)).digest("hex");
+}
+
+function createRequestDeduper(ttlMs) {
+  const entries = new Map();
+  return async (key, task) => {
+    const now = Date.now();
+    for (const [storedKey, entry] of entries) {
+      if (!entry.pending && now - entry.completedAt >= ttlMs) entries.delete(storedKey);
+    }
+    const existing = entries.get(key);
+    if (existing && (existing.pending || now - existing.completedAt < ttlMs)) return existing.promise;
+    const entry = { pending: true, completedAt: 0, promise: Promise.resolve().then(task) };
+    entries.set(key, entry);
+    try {
+      const value = await entry.promise;
+      entry.pending = false;
+      entry.completedAt = Date.now();
+      return value;
+    } catch (error) {
+      if (entries.get(key) === entry) entries.delete(key);
+      throw error;
+    }
+  };
+}
 
 function json(response, status, payload, origin) {
   response.writeHead(status, {
@@ -68,9 +96,11 @@ export function createBridgeServer({
   extensionId = "",
   upstreamFetch = globalThis.fetch,
   timeoutMs = 30_000,
+  idempotencyTtlMs = 3_000,
   mediaService = createLocalMediaService()
 } = {}) {
   const configured = Boolean(apiKey && baseUrl && extensionId);
+  const dedupe = createRequestDeduper(idempotencyTtlMs);
   return http.createServer(async (request, response) => {
     const origin = request.headers.origin || "";
     if (!allowedOrigin(origin, extensionId)) {
@@ -110,7 +140,8 @@ export function createBridgeServer({
       }
       try {
         const input = normalizeVideoRequest(await readJson(request));
-        return json(response, 200, await mediaService.prepare(input), origin);
+        const result = await dedupe(requestFingerprint(request.url, input), () => mediaService.prepare(input));
+        return json(response, 200, result, origin);
       } catch (error) {
         const normalized = error instanceof BridgeProtocolError
           ? error
@@ -128,15 +159,18 @@ export function createBridgeServer({
       }
       try {
         const input = normalizeVisionRequest(await readJson(request, VISION_BODY_LIMIT));
-        const modelResult = await callModel({
-          apiKey,
-          baseUrl,
-          model: visionModel,
-          upstreamFetch,
-          timeoutMs: Math.max(timeoutMs, 60_000),
-          messages: visionMessages(input)
+        const result = await dedupe(requestFingerprint(request.url, input), async () => {
+          const modelResult = await callModel({
+            apiKey,
+            baseUrl,
+            model: visionModel,
+            upstreamFetch,
+            timeoutMs: Math.max(timeoutMs, 60_000),
+            messages: visionMessages(input)
+          });
+          return validateVisionAnalysis(modelResult, input.scenes);
         });
-        return json(response, 200, validateVisionAnalysis(modelResult), origin);
+        return json(response, 200, result, origin);
       } catch (error) {
         const normalized = error instanceof BridgeProtocolError
           ? error
@@ -165,8 +199,12 @@ export function createBridgeServer({
       const body = await readJson(request);
       const sourcePost = normalizeSourcePost(body);
       const replyLanguage = request.url === "/v1/text/comments" ? normalizeReplyLanguage(body.replyLanguage) : undefined;
-      const modelResult = await callModel({ apiKey, baseUrl, model, upstreamFetch, timeoutMs, messages: route.messages(sourcePost, replyLanguage) });
-      return json(response, 200, route.validate(modelResult), origin);
+      const normalizedInput = { sourcePost, ...(replyLanguage ? { replyLanguage } : {}) };
+      const result = await dedupe(requestFingerprint(request.url, normalizedInput), async () => {
+        const modelResult = await callModel({ apiKey, baseUrl, model, upstreamFetch, timeoutMs, messages: route.messages(sourcePost, replyLanguage) });
+        return route.validate(modelResult);
+      });
+      return json(response, 200, result, origin);
     } catch (error) {
       const normalized = error instanceof BridgeProtocolError
         ? error

@@ -1,0 +1,32 @@
+{
+  "$sumi": "1",
+  "meta": {
+    "generated": "2026-09-08T00:00:00+08:00",
+    "updatedBy": ["/fix"],
+    "sector": "creator-productivity",
+    "mood": "warm-precise",
+    "platform": "desktop-sidebar"
+  },
+  "project": { "framework": "vanilla", "styling": "css", "typescript": false },
+  "tokens": {
+    "$schema": "https://design-tokens.github.io/community-group/format/",
+    "color": {
+      "brand": { "$type": "color", "$value": "#F35B2C" },
+      "ink": { "$type": "color", "$value": "#191916" },
+      "canvas": { "$type": "color", "$value": "#F2EFE7" },
+      "surface": { "$type": "color", "$value": "#FFFDF8" },
+      "muted": { "$type": "color", "$value": "#706E67" },
+      "border": { "$type": "color", "$value": "#DDD7CA" }
+    },
+    "typography": { "family": { "$type": "fontFamily", "$value": ["Inter", "PingFang SC", "sans-serif"] } },
+    "space": { "unit": { "$type": "dimension", "$value": { "value": 4, "unit": "px" } },
+    "radius": { "control": { "$type": "dimension", "$value": { "value": 10, "unit": "px" } }, "surface": { "$type": "dimension", "$value": { "value": 16, "unit": "px" } } },
+    "shadow": { "floating": { "$type": "shadow", "$value": { "color": "#1717141F", "offsetX": "0px", "offsetY": "8px", "blur": "24px", "spread": "0px" } } },
+    "duration": { "fast": { "$type": "duration", "$value": { "value": 140, "unit": "ms" } } },
+    "easing": { "standard": { "$type": "cubicBezier", "$value": [0.2, 0, 0, 1] } },
+    "z": {},
+    "$themes": { "light": {}, "dark": {} }
+  },
+  "tone": { "formality": "direct", "traits": ["克制", "清楚", "有创作感"], "wordsToUse": ["分析", "标注", "clip"], "wordsToAvoid": ["魔法", "一键搞定"] },
+  "references": [{ "app": "Notion", "platform": "desktop", "stealThis": "warm content-first neutrality", "takeaway": "保留品牌暖色但减少容器噪音" }]
+}
