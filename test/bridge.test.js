@@ -222,6 +222,7 @@ test("视觉端点固定使用 Gemini 3.7 Flash 并接收九宫格", async () =>
       headers: { "content-type": "application/json", origin: "chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
       body: JSON.stringify({
         sourcePost,
+        taskMode: "adapt",
         analysisPrompt: "分析镜头并执行替换。",
         replacementBrief: "把原产品替换成银色耳机。",
         scenes: [{ id: "scene-1", index: 1, startSeconds: 0, endSeconds: 12, frameTimes: [2, 6, 10] }],
@@ -237,8 +238,10 @@ test("视觉端点固定使用 Gemini 3.7 Flash 并接收九宫格", async () =>
     assert.equal(requests[0].model, "gemini-3.7-flash");
     assert.equal(requests[0].messages[1].content.filter((item) => item.type === "image_url").length, 2);
     assert.match(requests[0].messages[1].content[0].text, /银色耳机/u);
+    assert.match(requests[0].messages[1].content[0].text, /任务类型：改编成用户的视频/u);
     assert.match(requests[0].messages[1].content[0].text, /分析镜头并执行替换/u);
     assert.match(requests[0].messages[0].content, /每个 clip/u);
+    assert.match(requests[0].messages[0].content, /明确写入 sourceAnalysis\.claimedModel/u);
   });
 });
 

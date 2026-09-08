@@ -12,11 +12,11 @@ const state = {
   mode: "comment",
   scenes: [],
   contactSheets: [],
-  referenceAssets: [],
   actionGuards: new Map(),
-  videoTakeawayText: "",
-  videoAnalysisGenerated: false,
-  videoOutputDirty: false,
+  videoTaskMode: "replicate",
+  videoResults: { replicate: null, adapt: null },
+  videoTakeawayTexts: { replicate: "", adapt: "" },
+  videoOutputDirty: { replicate: false, adapt: false },
   videoDurationSeconds: 0,
   commentsGeneratedFor: null,
   inspirationGeneratedFor: null,
@@ -228,7 +228,7 @@ function renderContactSheets() {
   $("#frame-summary").textContent = state.contactSheets.length
     ? `${state.scenes.length} 个场景 · ${frameCount} 帧 · ${state.contactSheets.length} 张九宫格`
     : "尚未生成九宫格";
-  $("#analyze-video").disabled = selectedCount < 1;
+  updateVideoTaskUI();
   const items = state.contactSheets.map((sheet, index) => {
     const item = document.createElement("li");
     item.className = "file-item contact-sheet";
@@ -242,7 +242,7 @@ function renderContactSheets() {
     input.setAttribute("aria-label", `选择第 ${index + 1} 张九宫格`);
     input.addEventListener("change", () => {
       sheet.selected = input.checked;
-      markVideoOutputDirty();
+      markVideoOutputDirty("both");
       renderContactSheets();
     });
     const name = document.createElement("span");
@@ -259,10 +259,14 @@ function formatTime(seconds) {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
-function buildVideoTakeawayText(result) {
+function modelAwarePrompt(result) {
+  const claimedModel = result.sourceAnalysis?.claimedModel || "未识别";
+  return `原贴声明使用的模型：${claimedModel}。\n${result.medeoPrompt}`.trim();
+}
+
+function buildVideoTakeawayText(result, taskMode) {
   const source = result.sourceAnalysis;
-  const replacementBrief = $("#replacement-brief").value.trim();
-  const referenceNames = state.referenceAssets.map((asset) => asset.name).join("、");
+  const adaptationBrief = $("#adaptation-brief").value.trim();
   const clipText = result.clips.map((clip) => [
     `[${formatTime(clip.startSeconds)}–${formatTime(clip.endSeconds)}] ${clip.narrativeRole}`,
     `画面：${clip.whatHappens}`,
@@ -281,30 +285,40 @@ function buildVideoTakeawayText(result) {
     "【时间轴分镜】",
     clipText,
     "",
-    "【替换要求】",
-    replacementBrief || "未指定，沿用原视频中的可见内容。",
-    referenceNames ? `参考图：${referenceNames}` : "",
+    taskMode === "adapt" ? "【改编要求】" : "",
+    taskMode === "adapt" ? adaptationBrief : "",
     "",
     "【生成 Prompt】",
-    result.medeoPrompt
+    modelAwarePrompt(result)
   ].filter((line, index, lines) => line !== "" || lines[index - 1] !== "").join("\n").trim();
 }
 
 function updateAnalyzeButtonLabel() {
   const button = $("#analyze-video");
   if (button.getAttribute("aria-busy") === "true") return;
-  button.textContent = state.videoOutputDirty ? "更新拆解稿" : state.videoAnalysisGenerated ? "重新生成拆解稿" : "生成完整拆解稿";
+  const mode = state.videoTaskMode;
+  const noun = mode === "adapt" ? "我的视频 Prompt" : "复刻 Prompt";
+  button.textContent = state.videoOutputDirty[mode] ? `更新${noun}` : state.videoResults[mode] ? `重新生成${noun}` : `生成${noun}`;
 }
 
-function markVideoOutputDirty() {
-  if (!state.videoAnalysisGenerated) return;
-  state.videoOutputDirty = true;
-  updateAnalyzeButtonLabel();
+function markVideoOutputDirty(scope = state.videoTaskMode) {
+  const modes = scope === "both" ? ["replicate", "adapt"] : [scope];
+  modes.forEach((mode) => {
+    if (state.videoResults[mode]) state.videoOutputDirty[mode] = true;
+  });
+  updateVideoTaskUI();
 }
 
-function renderVideoTakeaway(result) {
+function renderVideoTakeaway(result, taskMode = state.videoTaskMode, persist = true) {
   const shell = $("#video-takeaway");
+  if (!result) {
+    shell.hidden = true;
+    return;
+  }
   const source = result.sourceAnalysis;
+  const isAdapt = taskMode === "adapt";
+  $("#takeaway-title").textContent = isAdapt ? "我的视频 Prompt" : "复刻 Prompt";
+  $("#copy-takeaway").textContent = isAdapt ? "复制我的视频 Prompt" : "复制复刻 Prompt";
   $("#takeaway-model").textContent = `模型 · ${source.claimedModel} · ${source.confidence}`;
   $("#takeaway-model").title = source.modelEvidence;
   $("#source-analysis-summary").textContent = source.postSummary || result.summary;
@@ -322,12 +336,34 @@ function renderVideoTakeaway(result) {
     return item;
   });
   $("#clip-annotations").replaceChildren(...items);
-  $("#takeaway-prompt").textContent = result.medeoPrompt;
-  state.videoTakeawayText = buildVideoTakeawayText(result);
-  state.videoAnalysisGenerated = true;
-  state.videoOutputDirty = false;
+  $("#takeaway-prompt").textContent = modelAwarePrompt(result);
+  if (persist) {
+    state.videoResults[taskMode] = result;
+    state.videoTakeawayTexts[taskMode] = buildVideoTakeawayText(result, taskMode);
+    state.videoOutputDirty[taskMode] = false;
+  }
   shell.hidden = false;
   updateAnalyzeButtonLabel();
+}
+
+function updateVideoTaskUI() {
+  const mode = state.videoTaskMode;
+  $$('[data-video-task]').forEach((button) => {
+    const active = button.dataset.videoTask === mode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  $$('[data-video-task-panel]').forEach((panel) => panel.classList.toggle("active", panel.dataset.videoTaskPanel === mode));
+  const hasSheets = state.contactSheets.some((sheet) => sheet.selected);
+  const hasBrief = $("#adaptation-brief").value.trim().length > 0;
+  $("#analyze-video").disabled = !hasSheets || (mode === "adapt" && !hasBrief);
+  updateAnalyzeButtonLabel();
+  renderVideoTakeaway(state.videoResults[mode], mode, false);
+}
+
+function setVideoTaskMode(mode) {
+  state.videoTaskMode = mode;
+  updateVideoTaskUI();
 }
 
 async function refreshTextStatus() {
@@ -375,13 +411,13 @@ async function loadContext() {
     $("#inspiration-quiz").hidden = true;
     $("#text-connector-notice").classList.remove("success");
     $("#text-connector-notice").textContent = "尚未调用 AI，不会用本地模板冒充模型结果。";
-    state.referenceAssets = [];
-    $("#replacement-brief").value = "";
-    state.videoTakeawayText = "";
-    state.videoAnalysisGenerated = false;
-    state.videoOutputDirty = false;
+    $("#adaptation-brief").value = "";
+    state.videoTaskMode = "replicate";
+    state.videoResults = { replicate: null, adapt: null };
+    state.videoTakeawayTexts = { replicate: "", adapt: "" };
+    state.videoOutputDirty = { replicate: false, adapt: false };
     $("#video-takeaway").hidden = true;
-    renderReferenceAssets();
+    updateVideoTaskUI();
   }
   state.context = nextContext;
   renderSource();
@@ -485,7 +521,7 @@ $("#prepare-video").addEventListener("click", async () => {
     state.scenes = result.scenes;
     state.contactSheets = result.contactSheets.map((sheet) => ({ ...sheet, selected: true }));
     state.videoDurationSeconds = result.durationSeconds;
-    markVideoOutputDirty();
+    markVideoOutputDirty("both");
     renderContactSheets();
     $("#media-status").textContent = isDemo ? "DEMO 已截帧" : "本机已截帧";
     $("#media-status").className = "status local";
@@ -504,86 +540,38 @@ $("#prepare-video").addEventListener("click", async () => {
   }
 });
 
-function renderReferenceAssets() {
-  const items = state.referenceAssets.map((asset, index) => {
-    const item = document.createElement("li");
-    item.className = "file-item reference-asset";
-    const preview = document.createElement("img");
-    preview.src = asset.dataUrl;
-    preview.alt = asset.name;
-    const name = document.createElement("span");
-    name.textContent = asset.name;
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "text-button";
-    remove.textContent = "移除";
-    remove.addEventListener("click", () => {
-      state.referenceAssets.splice(index, 1);
-      markVideoOutputDirty();
-      renderReferenceAssets();
-    });
-    item.append(preview, name, remove);
-    return item;
-  });
-  $("#reference-asset-list").replaceChildren(...items);
-}
-
-$("#reference-assets").addEventListener("change", async (event) => {
-  const files = [...event.target.files].slice(0, 4);
-  if ([...event.target.files].length > 4) showToast("最多使用前 4 张参考图。 ");
-  const allowed = new Set(["image/png", "image/jpeg", "image/webp"]);
-  const valid = files.filter((file) => allowed.has(file.type) && file.size <= 5 * 1024 * 1024);
-  if (valid.length !== files.length) showToast("已忽略格式不支持或超过 5 MB 的图片。 ");
-  try {
-    state.referenceAssets = await Promise.all(valid.map((file) => new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.addEventListener("load", () => {
-        const dataUrl = String(reader.result);
-        resolve({ name: file.name, dataUrl, fingerprint: actionFingerprint(dataUrl) });
-      });
-      reader.addEventListener("error", () => reject(reader.error));
-      reader.readAsDataURL(file);
-    })));
-    markVideoOutputDirty();
-    renderReferenceAssets();
-  } catch {
-    showToast("参考图读取失败，请重新选择。 ");
-  }
-  event.target.value = "";
-});
-
 $("#analyze-video").addEventListener("click", async () => {
   const contactSheets = state.contactSheets.filter((sheet) => sheet.selected);
   if (!contactSheets.length) return showToast("请至少选择 1 张九宫格。 ");
+  const taskMode = state.videoTaskMode;
+  const adaptationBrief = $("#adaptation-brief").value.trim();
+  if (taskMode === "adapt" && !adaptationBrief) return showToast("请先写下你想改编成什么视频。 ");
   const analysisInput = {
+    taskMode,
     sheetIds: contactSheets.map((sheet) => sheet.id),
     analysisPrompt: $("#analysis-prompt").value,
-    replacementBrief: $("#replacement-brief").value,
-    referenceImages: state.referenceAssets.map((asset) => ({
-      name: asset.name,
-      size: asset.dataUrl.length,
-      fingerprint: asset.fingerprint || actionFingerprint(asset.dataUrl)
-    }))
+    replacementBrief: taskMode === "adapt" ? adaptationBrief : ""
   };
-  const action = beginAction("analyze-video", analysisInput);
+  const action = beginAction(`analyze-video-${taskMode}`, analysisInput);
   if (!action) return;
   let successful = false;
   const button = $("#analyze-video");
   button.disabled = true;
   button.setAttribute("aria-busy", "true");
-  button.textContent = state.videoAnalysisGenerated ? "正在更新拆解稿…" : "正在生成拆解稿…";
+  button.textContent = taskMode === "adapt" ? "正在生成我的视频 Prompt…" : "正在生成复刻 Prompt…";
   $("#vision-notice").hidden = true;
   try {
     const result = await visionConnector.analyzeVideo({
       contactSheets,
       scenes: state.scenes,
       sourcePost: state.context,
+      taskMode,
       analysisPrompt: $("#analysis-prompt").value,
-      replacementBrief: $("#replacement-brief").value,
-      referenceImages: state.referenceAssets
+      replacementBrief: taskMode === "adapt" ? adaptationBrief : "",
+      referenceImages: []
     });
-    renderVideoTakeaway(result);
-    showToast("完整拆解稿已生成。 ");
+    renderVideoTakeaway(result, taskMode);
+    showToast(taskMode === "adapt" ? "我的视频 Prompt 已生成。 " : "复刻 Prompt 已生成。 ");
     successful = true;
   } catch (error) {
     $("#vision-notice").classList.remove("success");
@@ -598,9 +586,13 @@ $("#analyze-video").addEventListener("click", async () => {
   }
 });
 
-$("#replacement-brief").addEventListener("input", markVideoOutputDirty);
-$("#analysis-prompt").addEventListener("input", markVideoOutputDirty);
-$("#copy-takeaway").addEventListener("click", () => copyText(state.videoTakeawayText, "完整拆解稿已复制。"));
+$$('[data-video-task]').forEach((button) => button.addEventListener("click", () => setVideoTaskMode(button.dataset.videoTask)));
+$("#adaptation-brief").addEventListener("input", () => markVideoOutputDirty("adapt"));
+$("#analysis-prompt").addEventListener("input", () => markVideoOutputDirty("both"));
+$("#copy-takeaway").addEventListener("click", () => {
+  const mode = state.videoTaskMode;
+  copyText(state.videoTakeawayTexts[mode], mode === "adapt" ? "我的视频 Prompt 已复制。" : "复刻 Prompt 已复制。");
+});
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && (changes.xpc_current_context || changes.xpc_current_mode)) loadContext();

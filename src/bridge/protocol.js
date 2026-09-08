@@ -61,10 +61,12 @@ export function normalizeVisionRequest(input) {
   const scenes = Array.isArray(input?.scenes) ? input.scenes : [];
   const contactSheets = Array.isArray(input?.contactSheets) ? input.contactSheets : [];
   const analysisPrompt = String(input?.analysisPrompt || DEFAULT_VISION_ANALYSIS_PROMPT).trim();
+  const taskMode = input?.taskMode === "adapt" ? "adapt" : "replicate";
   const replacementBrief = String(input?.replacementBrief || "").trim();
   const referenceImages = Array.isArray(input?.referenceImages) ? input.referenceImages : [];
   if (!analysisPrompt || analysisPrompt.length > 6000) throw new BridgeProtocolError("分析 Prompt 为空或过长", "INVALID_VISION_INPUT");
   if (replacementBrief.length > 3000) throw new BridgeProtocolError("替换说明过长", "INVALID_VISION_INPUT");
+  if (taskMode === "adapt" && !replacementBrief) throw new BridgeProtocolError("改编内容不能为空", "INVALID_VISION_INPUT");
   if (referenceImages.length > 4) throw new BridgeProtocolError("参考图最多 4 张", "INVALID_VISION_INPUT");
   if (!contactSheets.length || contactSheets.length > 5) {
     throw new BridgeProtocolError("视觉分析需要 1–5 张九宫格", "INVALID_VISION_INPUT");
@@ -92,6 +94,7 @@ export function normalizeVisionRequest(input) {
   if (!normalizedScenes.length) throw new BridgeProtocolError("九宫格没有对应的 clip 时间信息", "INVALID_VISION_INPUT");
   return {
     sourcePost,
+    taskMode,
     analysisPrompt,
     replacementBrief,
     referenceImages: referenceImages.map((image, index) => {
