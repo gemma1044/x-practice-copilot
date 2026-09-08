@@ -254,43 +254,12 @@ function renderContactSheets() {
   $("#frame-list").replaceChildren(...items);
 }
 
-function formatTime(seconds) {
-  const total = Math.max(0, Math.round(Number(seconds) || 0));
-  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
-}
-
 function modelAwarePrompt(result) {
-  const claimedModel = result.sourceAnalysis?.claimedModel || "未识别";
-  return `原贴声明使用的模型：${claimedModel}。\n${result.medeoPrompt}`.trim();
+  return String(result.medeoPrompt || "").trim();
 }
 
-function buildVideoTakeawayText(result, taskMode) {
-  const source = result.sourceAnalysis;
-  const adaptationBrief = $("#adaptation-brief").value.trim();
-  const clipText = result.clips.map((clip) => [
-    `[${formatTime(clip.startSeconds)}–${formatTime(clip.endSeconds)}] ${clip.narrativeRole}`,
-    `画面：${clip.whatHappens}`,
-    clip.visibleText ? `字幕：${clip.visibleText}` : "",
-    clip.visibleChange ? `变化：${clip.visibleChange}` : "",
-    clip.visualStyle ? `风格：${clip.visualStyle}` : "",
-    clip.transition ? `转场：${clip.transition}` : ""
-  ].filter(Boolean).join("\n")).join("\n\n");
-  return [
-    "【来源分析】",
-    `来源：${state.context?.url || "未记录"}`,
-    `摘要：${source.postSummary || result.summary}`,
-    `模型：${source.claimedModel}（置信度：${source.confidence}）`,
-    `依据：${source.modelEvidence}`,
-    "",
-    "【时间轴分镜】",
-    clipText,
-    "",
-    taskMode === "adapt" ? "【改编要求】" : "",
-    taskMode === "adapt" ? adaptationBrief : "",
-    "",
-    "【生成 Prompt】",
-    modelAwarePrompt(result)
-  ].filter((line, index, lines) => line !== "" || lines[index - 1] !== "").join("\n").trim();
+function buildVideoTakeawayText(result) {
+  return modelAwarePrompt(result);
 }
 
 function updateAnalyzeButtonLabel() {
@@ -321,25 +290,10 @@ function renderVideoTakeaway(result, taskMode = state.videoTaskMode, persist = t
   $("#copy-takeaway").textContent = isAdapt ? "复制我的视频 Prompt" : "复制复刻 Prompt";
   $("#takeaway-model").textContent = `模型 · ${source.claimedModel} · ${source.confidence}`;
   $("#takeaway-model").title = source.modelEvidence;
-  $("#source-analysis-summary").textContent = source.postSummary || result.summary;
-  const items = result.clips.map((clip) => {
-    const item = document.createElement("li");
-    const time = document.createElement("time");
-    time.textContent = `${formatTime(clip.startSeconds)}–${formatTime(clip.endSeconds)}`;
-    const content = document.createElement("div");
-    const title = document.createElement("b");
-    title.textContent = clip.whatHappens;
-    const meta = document.createElement("span");
-    meta.textContent = [clip.narrativeRole, clip.visibleText ? `字幕：${clip.visibleText}` : ""].filter(Boolean).join(" · ");
-    content.append(title, meta);
-    item.append(time, content);
-    return item;
-  });
-  $("#clip-annotations").replaceChildren(...items);
   $("#takeaway-prompt").textContent = modelAwarePrompt(result);
   if (persist) {
     state.videoResults[taskMode] = result;
-    state.videoTakeawayTexts[taskMode] = buildVideoTakeawayText(result, taskMode);
+    state.videoTakeawayTexts[taskMode] = buildVideoTakeawayText(result);
     state.videoOutputDirty[taskMode] = false;
   }
   shell.hidden = false;

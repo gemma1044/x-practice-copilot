@@ -155,14 +155,6 @@ label textarea:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--
 .takeaway-shell header button { flex: none; min-height: 32px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); cursor: pointer; padding: 5px 9px; font-size: 10px; font-weight: 800; }
 .takeaway-shell header button:hover { border-color: var(--orange); color: var(--orange); }
 .takeaway-shell header button:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
-.takeaway-shell > p { margin: 0; padding: 11px 12px; color: var(--muted); font-size: 11px; line-height: 1.5; }
-.takeaway-shell ol { margin: 0; padding: 0; list-style: none; }
-.takeaway-shell li { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 10px; border-top: 1px solid var(--line); padding: 10px 12px; }
-.takeaway-shell time { color: var(--muted); font: 600 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
-.takeaway-shell li div { display: grid; gap: 3px; min-width: 0; }
-.takeaway-shell li b { font-size: 11px; line-height: 1.4; }
-.takeaway-shell li span { color: var(--muted); font-size: 10px; line-height: 1.4; }
-.takeaway-prompt { display: grid; gap: 8px; border-top: 1px solid var(--line); padding: 12px; }
-.takeaway-prompt b { font-size: 11px; }
-.takeaway-prompt p { margin: 0; color: #555149; font: 10px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
+.takeaway-shell pre { max-height: 480px; margin: 0; overflow: auto; padding: 14px 12px; color: #45423c; font: 10px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; white-space: pre-wrap; }
+.takeaway-shell pre:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: -3px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

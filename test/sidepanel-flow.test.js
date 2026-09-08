@@ -94,9 +94,9 @@ test("Demo 完成灵感、实践、证据、草稿与本机截帧主路径", { t
   assert.equal(await panel.getByRole("button", { name: "生成复刻 Prompt" }).isEnabled(), true);
   await panel.getByRole("button", { name: "生成复刻 Prompt" }).click();
   await panel.getByText("模型 · MiniMax H3 + Midjourney v8.2 · 高").waitFor();
-  assert.equal(await panel.locator("#clip-annotations li").count(), 6);
   assert.match(await panel.locator("#takeaway-prompt").textContent(), /30 秒竖屏时尚短片/u);
-  assert.match(await panel.locator("#takeaway-prompt").textContent(), /原贴声明使用的模型：MiniMax H3 \+ Midjourney v8\.2/u);
+  assert.match(await panel.locator("#takeaway-prompt").textContent(), /原贴模型：MiniMax H3 \+ Midjourney v8\.2/u);
+  assert.equal(await panel.locator("#clip-annotations").count(), 0);
   await panel.getByRole("button", { name: "复制复刻 Prompt" }).click();
   await panel.getByText("复刻 Prompt 已复制。").waitFor();
 

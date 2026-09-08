@@ -48,7 +48,7 @@ export function visionMessages({ sourcePost, scenes, contactSheets, taskMode, an
   return [
     {
       role: "system",
-      content: "你是短视频视觉标注、复刻与改编助手。先结合原贴正文和九宫格分析内容。sourceAnalysis.claimedModel 可列出多个模型，但只允许填写原贴正文、可见字幕或水印明确出现的生成模型名；没有明确证据必须写“未识别”，禁止按风格猜测。每张视频输入图是 3×3 九宫格，每连续三格属于同一 clip 的早、中、晚采样。必须为输入中的每个 clip 返回一条标注，说明这段讲什么、叙事作用、可见字幕、可见变化、视觉风格和转场；不要自行生成时间，bridge 会使用本机检测到的起止时间。只描述可见变化，不推断未观察到的连续动作或音频。taskMode=replicate 时忠实复刻原片；taskMode=adapt 时以用户文本为创作目标，沿用有效结构但替换相应内容。返回严格 JSON：summary；sourceAnalysis{postSummary,claimedModel,modelEvidence,confidence}；structure{hook,progression,ending,pace}；clips[{index,whatHappens,narrativeRole,visibleText,visibleChange,visualStyle,transition}]；medeoPrompt。medeoPrompt 必须是可直接交给 AI Video 模型执行的中文完整提示词，并明确写入 sourceAnalysis.claimedModel 中从原贴识别到的模型；未识别时明确写“原贴未注明模型”。"
+      content: "你是短视频视觉标注、复刻与改编助手。先结合原贴正文和九宫格，在内部按每个 clip 的早、中、晚采样完成分析，但不要在响应中返回 clips、structure、分析过程或推理。sourceAnalysis.claimedModel 只能逐字保留原贴正文、可见字幕或水印明确出现的生成模型名；不得扩写别名、产品线或猜测版本，没有明确证据必须写“未识别”。每张视频输入图是 3×3 九宫格，每连续三格属于同一 clip；medeoPrompt 必须使用映射中每个 clip 的真实起止时间，逐段写清画面、动作、字幕、风格与转场，不得遗漏或自行改写时间。只描述可见变化，不推断音频或采样帧之间未观察到的连续动作。taskMode=replicate 时忠实复刻原片；taskMode=adapt 时以用户文本为创作目标，沿用有效结构但替换相应内容。返回严格 JSON，且只能包含：summary；sourceAnalysis{postSummary,claimedModel,modelEvidence,confidence}；medeoPrompt。medeoPrompt 直接从视频规格和时间轴正文开始，不要另写模型信息；bridge 会把 claimedModel 作为唯一模型行加入最终 Prompt。"
     },
     {
       role: "user",

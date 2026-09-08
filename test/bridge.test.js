@@ -206,9 +206,7 @@ test("视觉端点固定使用 Gemini 3.7 Flash 并接收九宫格", async () =>
     return upstreamResponse({
       summary: "人物位置在场景内发生变化。",
       sourceAnalysis: { postSummary: "原帖展示模型评测。", claimedModel: "GPT-6", modelEvidence: "原帖正文明确提到 GPT-6", confidence: "高" },
-      structure: { hook: "人物开场", progression: "产品展示", ending: "字卡收束", pace: "快切" },
-      clips: [{ index: 1, whatHappens: "人物从远景走到近景", narrativeRole: "开头钩子", visibleText: "", visibleChange: "远景到近景", visualStyle: "粉色", transition: "硬切" }],
-      medeoPrompt: "生成一条竖屏时尚短片。"
+      medeoPrompt: "[00:00–00:12] 人物从远景走到近景，粉色画面硬切收束。"
     });
   };
   await withBridge({
@@ -232,16 +230,16 @@ test("视觉端点固定使用 Gemini 3.7 Flash 并接收九宫格", async () =>
     });
     assert.equal(response.status, 200);
     const payload = await response.json();
-    assert.equal(payload.medeoPrompt, "生成一条竖屏时尚短片。");
+    assert.equal(payload.medeoPrompt, "原贴模型：GPT-6\n[00:00–00:12] 人物从远景走到近景，粉色画面硬切收束。");
     assert.equal(payload.sourceAnalysis.claimedModel, "GPT-6");
-    assert.deepEqual([payload.clips[0].startSeconds, payload.clips[0].endSeconds], [0, 12]);
+    assert.equal("clips" in payload, false);
     assert.equal(requests[0].model, "gemini-3.7-flash");
     assert.equal(requests[0].messages[1].content.filter((item) => item.type === "image_url").length, 2);
     assert.match(requests[0].messages[1].content[0].text, /银色耳机/u);
     assert.match(requests[0].messages[1].content[0].text, /任务类型：改编成用户的视频/u);
     assert.match(requests[0].messages[1].content[0].text, /分析镜头并执行替换/u);
-    assert.match(requests[0].messages[0].content, /每个 clip/u);
-    assert.match(requests[0].messages[0].content, /明确写入 sourceAnalysis\.claimedModel/u);
+    assert.match(requests[0].messages[0].content, /内部按每个 clip/u);
+    assert.match(requests[0].messages[0].content, /不要在响应中返回 clips/u);
   });
 });
 

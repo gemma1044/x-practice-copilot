@@ -155,55 +155,26 @@ export function validateInspiration(value) {
   };
 }
 
-export function validateVisionAnalysis(value, expectedScenes = []) {
+export function validateVisionAnalysis(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new BridgeProtocolError("视觉模型结果必须是对象", "INVALID_MODEL_OUTPUT", 502);
   }
   const summary = String(value.summary || "").trim();
   const medeoPrompt = String(value.medeoPrompt || "").trim();
   const sourceAnalysis = value.sourceAnalysis;
-  const clips = Array.isArray(value.clips) ? value.clips : [];
-  if (!summary || !medeoPrompt || !sourceAnalysis || !clips.length) {
-    throw new BridgeProtocolError("视觉模型结果缺少来源分析、clip 标注或 Medeo prompt", "INVALID_MODEL_OUTPUT", 502);
+  if (!summary || !medeoPrompt || !sourceAnalysis) {
+    throw new BridgeProtocolError("视觉模型结果缺少来源分析或最终 Prompt", "INVALID_MODEL_OUTPUT", 502);
   }
-  if (expectedScenes.length && clips.length !== expectedScenes.length) {
-    throw new BridgeProtocolError("视觉模型没有逐一返回全部 clip", "INVALID_MODEL_OUTPUT", 502);
-  }
-  const normalizedClips = clips.slice(0, 15).map((clip, index) => {
-    const expected = expectedScenes.find((scene) => Number(scene.index) === Number(clip?.index)) || expectedScenes[index];
-    const whatHappens = String(clip?.whatHappens || "").trim();
-    const narrativeRole = String(clip?.narrativeRole || "").trim();
-    if (!whatHappens || !narrativeRole) {
-      throw new BridgeProtocolError(`第 ${index + 1} 个 clip 缺少内容或叙事作用`, "INVALID_MODEL_OUTPUT", 502);
-    }
-    return {
-      index: Number(expected?.index || clip?.index || index + 1),
-      startSeconds: Number(expected?.startSeconds || 0),
-      endSeconds: Number(expected?.endSeconds || 0),
-      whatHappens,
-      narrativeRole,
-      visibleText: String(clip?.visibleText || "").trim(),
-      visibleChange: String(clip?.visibleChange || "").trim(),
-      visualStyle: String(clip?.visualStyle || "").trim(),
-      transition: String(clip?.transition || "").trim()
-    };
-  });
+  const claimedModel = String(sourceAnalysis.claimedModel || "未识别").trim() || "未识别";
   return {
     summary,
     sourceAnalysis: {
       postSummary: String(sourceAnalysis.postSummary || "").trim(),
-      claimedModel: String(sourceAnalysis.claimedModel || "未识别").trim() || "未识别",
+      claimedModel,
       modelEvidence: String(sourceAnalysis.modelEvidence || "未发现明确模型信息").trim(),
       confidence: new Set(["高", "中", "低"]).has(sourceAnalysis.confidence) ? sourceAnalysis.confidence : "低"
     },
-    structure: {
-      hook: String(value.structure?.hook || "").trim(),
-      progression: String(value.structure?.progression || "").trim(),
-      ending: String(value.structure?.ending || "").trim(),
-      pace: String(value.structure?.pace || "").trim()
-    },
-    clips: normalizedClips,
-    medeoPrompt
+    medeoPrompt: `原贴模型：${claimedModel}\n${medeoPrompt}`
   };
 }
 

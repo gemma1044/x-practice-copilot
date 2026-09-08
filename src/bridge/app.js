@@ -168,7 +168,7 @@ export function createBridgeServer({
             timeoutMs: Math.max(timeoutMs, 60_000),
             messages: visionMessages(input)
           });
-          return validateVisionAnalysis(modelResult, input.scenes);
+          return validateVisionAnalysis(modelResult);
         });
         return json(response, 200, result, origin);
       } catch (error) {
