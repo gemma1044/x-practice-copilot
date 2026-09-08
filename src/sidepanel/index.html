@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>X Practice Copilot</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark">X</span><span>Practice<br>Copilot</span></div>
+        <span class="local-pill">LOCAL MVP</span>
+      </header>
+
+      <section class="source-card" id="source-card" aria-live="polite">
+        <div class="eyebrow">当前来源</div>
+        <p id="source-empty">请在 X 帖子下点击任一 Copilot 入口。</p>
+        <div id="source-content" hidden>
+          <div class="source-author" id="source-author"></div>
+          <blockquote id="source-text"></blockquote>
+          <a id="source-link" target="_blank" rel="noreferrer">查看原帖 ↗</a>
+          <span class="scope" id="source-scope"></span>
+        </div>
+      </section>
+
+      <nav class="tabs" aria-label="工作模式">
+        <button data-tab="comment" class="active">评论</button>
+        <button data-tab="inspiration">灵感</button>
+        <button data-tab="video">视频</button>
+      </nav>
+
+      <section class="panel active" data-panel="comment">
+        <div class="section-heading"><div><span class="step">01</span><h1>写一条诚实的评论</h1></div><span class="status warning" id="comment-ai-status">AI 未配置</span></div>
+        <p class="lede">AI 根据帖子生成三个不同角度；涉及个人经历时会自动改成计划式措辞。</p>
+        <div class="comment-controls">
+          <button class="primary" id="generate-comments">用 AI 生成 3 个角度</button>
+          <label class="reply-language" for="reply-language"><span>回复语种</span><select id="reply-language">
+            <option value="zh-CN">中文</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="es">Español</option>
+            <option value="same-as-source">跟随原帖</option>
+          </select></label>
+        </div>
+        <div class="notice" id="text-connector-notice">尚未调用 AI，不会用本地模板冒充模型结果。</div>
+        <div id="draft-list" class="draft-list"></div>
+      </section>
+
+      <section class="panel" data-panel="inspiration">
+        <div class="section-heading"><div><span class="step">02</span><h1>AI 把帖子变成实践</h1></div><span class="status warning" id="inspiration-ai-status">AI 未配置</span></div>
+        <button class="ai-refresh" id="generate-inspiration">AI 提炼</button>
+        <div id="inspiration-quiz" hidden>
+          <fieldset><legend>1. 复用哪个机制？</legend><div class="choice-grid" id="mechanism-choices"></div></fieldset>
+          <fieldset><legend>2. 选一个具体脚本 idea</legend><div class="choice-grid script-ideas" id="script-idea-choices"></div></fieldset>
+          <label class="single-fill">补充（可选）<textarea id="additional-note"></textarea></label>
+        </div>
+        <button class="primary" id="save-inspiration">保存灵感</button>
+        <section class="practice-workspace" id="practice-workspace" hidden>
+          <div class="workspace-head"><b>实践与证据</b><span class="status warning" id="practice-status">待验证</span></div>
+          <p class="lede">AI 建议和你的真实记录分开保存；只有你确认的证据才能推进状态。</p>
+          <label>实践假设<textarea id="practice-hypothesis" placeholder="我想验证什么？"></textarea></label>
+          <label>执行步骤<textarea id="practice-steps" placeholder="准备怎样做和记录？"></textarea></label>
+          <label>实际结果（完成后填写）<textarea id="practice-result" placeholder="只填写真实发生的结果"></textarea></label>
+          <button class="text-button wide" id="save-practice">保存实践记录</button>
+          <div class="evidence-form">
+            <label>证据说明<textarea id="evidence-summary" placeholder="截图、日志或结果数字说明"></textarea></label>
+            <label>证据链接（可选）<input id="evidence-url" type="url" placeholder="https://"></label>
+            <label class="confirm-row"><input id="evidence-confirmed" type="checkbox">这是我实际产生并核对过的记录</label>
+            <button class="text-button wide" id="add-evidence">加入证据</button>
+          </div>
+          <div id="evidence-list" class="evidence-list" aria-live="polite"></div>
+          <button class="primary" id="build-evidence-draft" disabled>生成可追溯草稿</button>
+          <textarea id="evidence-draft" class="traceable-draft" aria-label="可追溯草稿" readonly></textarea>
+        </section>
+      </section>
+
+      <section class="panel" data-panel="video">
+        <div class="section-heading"><div><span class="step">03</span><h1>拆出可复刻的结构</h1></div><span class="status warning" id="media-status">本机工具检测中</span></div>
+        <p class="lede">下载当前公开 X 视频，在本机截取代表帧。</p>
+        <button class="primary" id="prepare-video">下载并本地截帧</button>
+        <div class="notice" id="media-notice">单条、串行处理；默认不读取登录 Cookie，视频不会上传给视觉模型。</div>
+        <div id="frame-summary" class="file-summary">尚未生成九宫格</div>
+        <ol id="frame-list" class="file-list" aria-label="本机生成的场景九宫格"></ol>
+        <div class="replacement-box" aria-labelledby="replacement-title">
+          <div class="workspace-head"><b id="replacement-title">替换成我的内容</b><span>可选</span></div>
+          <label>替换说明<textarea id="replacement-brief" maxlength="3000" placeholder="例如：把画面中的粉色香水替换成我的银色耳机；秀场替换成海边日落，保留原视频节奏和镜头结构。"></textarea></label>
+          <label class="asset-picker" for="reference-assets"><input id="reference-assets" type="file" accept="image/png,image/jpeg,image/webp" multiple><span>＋ 上传产品或场地参考图</span><small>最多 4 张 · 单张不超过 5 MB</small></label>
+          <ol id="reference-asset-list" class="file-list" aria-label="替换参考图"></ol>
+        </div>
+        <details class="prompt-editor"><summary>编辑 Gemini 分析 Prompt</summary><textarea id="analysis-prompt" maxlength="6000">分析所选九宫格中的开头钩子、场景顺序、镜头景别、主体位置变化、画面风格、可见文案、转场和结尾收束。严格区分可见事实与推断，不推断音频或采样帧之间未观察到的连续动作。最终输出一份可直接交给 AI Video 模型的中文生成 Prompt：保留原视频的有效结构和节奏；如果提供了替换说明或参考图，明确把原产品、人物、文案或场地替换为用户内容，并把参考图中的可见特征写进生成要求。</textarea></details>
+        <button class="primary" id="analyze-video" disabled>用选中的九宫格分析</button>
+        <div class="notice" id="vision-notice">Gemini 3.7 Flash 只会接收你确认的九宫格与参考图。</div>
+        <div class="output-shell">
+          <div class="output-title"><span>Medeo prompt 草稿框架</span><button id="copy-medeo">复制</button></div>
+          <textarea id="medeo-prompt" aria-label="Medeo prompt"></textarea>
+          <small>当前只生成 prompt，不调用 Medeo。</small>
+        </div>
+      </section>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </main>
+    <script src="demo-shim.js"></script>
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>

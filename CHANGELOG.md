@@ -1,0 +1,116 @@
+# CHANGELOG
+
+本文件是 X Practice Copilot 的唯一实现变更入口；每轮同时登记唯一用户入口与数据通道路标。
+
+## 2026-09-08 · 可编辑视觉分析与内容替换
+
+- 视频 Tab 在原 Gemini 分析按钮前增加替换说明与最多 4 张产品/场地参考图；不新增第二个 AI 或分析入口。
+- 默认折叠提供“编辑 Gemini 分析 Prompt”，用户可直接修改专用分析任务；默认 Prompt 改为同时拆解结构并生成可直接交给 AI Video 模型的替换后提示词。
+- 用户确认的九宫格、替换说明、分析 Prompt 与参考图经既有 `/v1/vision/analyze` 一次发送给 `gemini-3.7-flash`；原视频与单帧仍不上传。
+
+## 2026-09-08 · Bridge 常驻与自动恢复
+
+- 根因确认：此前 bridge 依赖临时终端进程，终端生命周期结束后 `127.0.0.1:4317` 无监听。
+- 继续复用唯一 bridge、端口和模型通道，通过 macOS LaunchAgent `ai.one2x.x-practice-copilot.bridge` 常驻托管，登录自动启动、异常退出自动拉起。
+- Side Panel 在可见时每 5 秒刷新一次本机连接状态，避免 bridge 恢复后仍残留“AI 不可用”。
+- 实测结束旧 PID 后服务自动生成新 PID，扩展来源的健康检查继续返回文字 AI、Gemini 视觉和媒体工具全部可用。
+
+## 2026-09-08 · 场景三帧九宫格与 Gemini 视觉分析
+
+- 视频准备由全片均匀 8 帧升级为镜头切换识别：每个场景在早、中、晚位置截取 3 帧，最多保留 15 个场景。
+- 每 3 个连续场景按时间顺序合成一张 3×3 九宫格，侧栏只展示、选择并提交九宫格，减少多图请求开销。
+- 新增 Merouter `gemini-3.7-flash` 视觉分析端点，严格限制最多 5 张 JPEG 九宫格，并输出结构化场景拆解和 Medeo prompt。
+- 原视频与单帧继续只在本机临时目录处理；视觉模型不会接收音频，也不得把采样帧间变化表述成未观察到的连续动作事实。
+- 同一条 38.68 秒公开视频真实冒烟通过：识别 9 个场景、生成 27 帧与 3 张竖屏九宫格；Gemini 返回 9 个场景拆解和完整 Medeo prompt。
+
+## 2026-09-08 · 评论回复语种与纯导航 Tab
+
+- 评论面板在唯一橙色生成按钮右侧新增回复语种下拉，支持中文、English、日本語、한국어、Español 与跟随原帖；默认中文。
+- 语种作为既有评论请求的受控字段传入同一个 `deepseek_v4_flash` Prompt；只改变评论正文语言，中文角度标题继续服务当前中文界面，不新增模型或数据通道。
+- 顶部 `评论 / 灵感 / 视频` Tab 改为纯面板切换；切换和帖子入口只定位流程，不再自动发起 AI 请求。所有生成与处理仍由面板中的明确操作按钮触发。
+
+## 2026-09-08 · 视频 MVP 改为本机下载与截帧
+
+- 原视频 tab 内的手动截图入口被替换，不新增第二入口；当前公开帖子 URL 继续通过唯一 loopback bridge 处理。
+- bridge 新增 `yt-dlp` 串行临时下载与 FFmpeg 等距截帧：默认无 Cookie、最多 5 分钟/250 MB，处理结束立即删除原视频。
+- 429、403、工具缺失和超时均安全失败；429 后本机冷却 15 分钟，下载固定 IPv4 且请求间隔 1 秒；不自动密集重试、不切换代理、不处理私密或受限视频。
+- Demo 改为明确标注的本机截帧模拟；自动测试覆盖 URL 白名单、临时清理、429 停止策略和完整视频 UI 主路径。
+- bridge 来源不匹配时返回可读的扩展 ID 修复指引，避免浏览器把 CORS 拒绝误显示成“无法连接”。
+- 修复现场确认 Demo 曾加载旧脚本；刷新后本机截帧模拟恢复。随后用同一来源公开帖子完成无 Cookie 真实冒烟：38.68 秒视频截取 8 帧、HTTP 200、临时文件清理完成。
+
+## 2026-09-08 · Merouter 本机 Key 配置入口
+
+- 复用既有 `LoopbackTextConnector → 本机 bridge → Merouter` 唯一文字通道，不在扩展侧新增 Key 存储或直连入口。
+- 新增被 Git 忽略的项目根 `.env` 作为唯一 Key 填写位置；`npm run bridge` 自动加载，Base URL 固定为 `https://merouter.play.one2x.ai/v1`，模型继续固定为 `deepseek_v4_flash`。
+- 自动预填当前打包目录对应的扩展 ID，并提供不含密钥的 `.env.example`；Key 缺失、错误或来源不匹配时继续安全失败。
+
+## 2026-09-07 · 可安装扩展包与真实 X 匿名核对
+
+- 新增 `npm run package:extension`，输出 `dist/x-practice-copilot-extension/`；只包含 Manifest 与浏览器运行文件，不包含 bridge、测试、文档或密钥。
+- 打包目录已再次通过真实 MV3 Chromium 运行时验收；生产入口和数据通道没有变化。
+- 使用带界面的隔离 Chromium 访问真实 `https://x.com/OpenAI` 返回 200，但匿名用户被登录墙遮挡，页面未渲染 `article[data-testid="tweet"]`，因此不能把这次核对记为真实已登录 X 验收。
+- `demo/` 明确只作为预览；日常使用必须把打包目录加载到用户已登录 X 的 Chrome / Edge。
+
+## 2026-09-07 · 真实 X 帖子入口兼容修复
+
+- 根据已登录 X 页面实测，修复内容脚本只识别旧版 `article[data-testid="tweet"]`、导致侧栏正常但帖子按钮完全不出现的问题。
+- 帖子发现改为从稳定的 `tweetText` 节点向上解析：同时兼容 `tweet` 换标签、新版 `cellInnerDiv` 与有限层级兜底容器；扩展版本更新为 `0.1.1`。
+- 操作条改为插在 X 原生社交操作栏之后，避免被真实页面容器裁剪；状态链接优先选择带 `time` 的主帖链接，避免误取引用帖。
+- 浏览器回归夹具现在混合覆盖新旧两种帖子容器、引用链接、站内换页与刷新；唯一入口和上下文数据通道没有变化。
+
+## 2026-09-07 · M2–M6 可离线实现收口
+
+- 生产侧栏把现有 `TextGenerationConnector` 的适配器切换为 `LoopbackTextConnector`；评论与灵感仍共用这一条文字能力通道，扩展只访问 `127.0.0.1:4317`。
+- 新增本机 bridge，密钥只从进程环境读取；固定 `deepseek_v4_flash`，校验扩展 ID、请求大小、超时及评论/灵感 JSON 结构。测试只使用 mock 上游，没有真实 Merouter 请求。
+- `PracticeRepository` 扩展为同一条本地业务数据通道：灵感、实践、用户确认的证据、草稿主张映射及可选同步队列统一写入版本 2 的 `xpc_practice_state`，并迁移旧 `xpc_inspirations`。
+- 灵感页原位增加实践与证据区，不新建入口；AI 建议不进入用户证据，只有用户勾选确认的记录才能推进到“有证据”并支撑事实草稿。
+- 视频页在原入口内补齐 3–8 张截图的预览、排序和单张移除；仍复用唯一 `VisionAnalysisConnector`，未上传截图或伪造视觉结果。
+- 移除未使用的 `activeTab` 权限，新增隐私说明和 Chrome / Edge 发布回归清单；自动测试覆盖 bridge、数据迁移、离线状态、完整本地实践流与截图管理。
+- M4 真实飞书、M2 真实 Merouter、M5 真实视觉模型及 M6 真实 X/Edge 回归仍受外部身份、凭据或环境阻塞，未记为已通过。
+
+## 2026-09-07 · M0 基线与 M1 浏览器壳验收
+
+- 初始化本地 Git 仓库，并补充依赖锁文件与忽略规则；未配置或调用任何外部 connector。
+- 新增 Playwright MV3 浏览器验收：用本地十帖夹具覆盖 30 个入口、三种帖子上下文、重复注入、站内换页、刷新及误触回复防护。
+- 修复 `service-worker.js` 延后调用 `chrome.sidePanel.open()` 导致 Chrome 丢失用户手势、侧栏实际无法打开的问题。
+- 内容脚本现在保留侧栏打开失败状态，避免入口点击失败时静默吞错。
+- 生产入口仍只有 `src/content/content-script.js`；上下文仍只走 `XPC_OPEN_PANEL → Service Worker → chrome.storage.local → Side Panel`；没有新增 connector 或业务数据通道。
+- 统一个人飞书口径为“候选配置尚未核验”；确认前远程 repository 继续拒绝读写，公司租户零接入。
+
+## 2026-09-07 · 视频 MVP 收敛
+
+- 双写更新方案层与实现层：视频 MVP 改为用户手动上传 3–8 张关键截图，视觉连接器只分析截图顺序并整理 Medeo prompt。
+- 自动抽帧、视频解码、标签页录制、音频分析与精确时间码整体后置；Demo 同步移除 MP4 / MOV 入口与相关承诺。
+- 继续复用唯一 `VisionAnalysisConnector`，没有新增媒体处理或业务数据通道。
+
+## 2026-09-07 · 技术里程碑与管家机制
+
+- 新增从现有 Demo 到可用扩展的 M0–M6 技术路线，先交付文字 Alpha，再完成本地 MVP 与可用发布候选。
+- 明确本机 bridge 承载密钥和外部调用；评论与灵感继续共用唯一文字连接器，截图分析与业务数据也分别保持单一接口。
+- MVP 继续排除视频抽帧和商店上架；管家只维护基线、依赖与验收，不复制实现。
+
+## 2026-09-07 · 灵感 AI 选择题
+
+- 评论与“收为灵感”复用唯一 `TextGenerationConnector`；Demo 由明确标注的 `Demo AI` 生成内容，真实扩展未配置 Merouter 时不再展示本地模板冒充 AI。
+- 灵感卡由 AI 生成机制、个人角度、实践规模与建议证据候选；界面改为四组选择题，只保留一个可选补充框。
+- 选择卡视觉收紧为单行文字；AI 的解释保留在悬停提示与无障碍名称中，不占第二行。
+- 灵感页移除状态流程、生成说明和飞书说明，只保留选项、一个可选补充框与“保存灵感”。
+- 灵感选择区改为轻量工具样式：AI 刷新降级为紧凑次级按钮，选项使用自适应单行胶囊与深色选中态，橙色主按钮只留给最终保存。
+- 灵感提问从四题收敛为两题：第一题选复用机制，第二题直接选择包含具体对象、实验结构与叙事钩子的脚本 idea；实践规模和证据不再拆成独立问题。
+- 保存仍走唯一 `PracticeRepository`。AI 建议证据写入 `evidencePlan`，不进入用户证据字段，也不会自动推进为“有证据”。
+
+## 2026-09-07 · 可交互本地 Demo
+
+- 新增 `demo/index.html`，模拟 X 帖子并复用真实 `src/sidepanel/index.html`，无需安装扩展即可查看三条主流程。
+- Demo 只增加浏览器 API shim：上下文仍沿用 `xpc_current_context / xpc_current_mode`，灵感数据落在 Demo 页的 `localStorage`；没有新增生产入口或第二条业务数据通道。
+- Demo 不调用 Merouter、飞书、视觉模型或 Medeo，也不会自动发布、上传文件或消耗额度。
+
+## 2026-09-07 · MVP 骨架
+
+- 新增 Manifest V3 扩展骨架，可在 Chrome / Edge 以“加载已解压的扩展程序”运行。
+- 唯一帖子入口：`src/content/content-script.js` 在 X 帖子操作区注入“AI 评论 / 收为灵感 / 拆解视频”，统一打开 `src/sidepanel/index.html`。
+- 唯一上下文通道：Content Script → `XPC_OPEN_PANEL` → Service Worker → `chrome.storage.local` → Side Panel。
+- 唯一业务数据通道：`PracticeRepository`；当前使用 `ChromeStoragePracticeRepository` 本地开发适配器。个人飞书身份与连接方式未确认，因此远程适配器拒绝写入，公司表没有接入。
+- 文字与视觉能力分别由 `TextGenerationConnector`、`VisionAnalysisConnector` 承载；当前均为明确的未配置适配器，没有真实外部调用。
+- Medeo 首版只生成并复制完整 prompt 框架；没有调用本机 skill，也没有真实出片。
+- 新增证据约束纯函数及 Repository 去重、状态推进测试。

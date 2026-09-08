@@ -1,0 +1,19 @@
+{
+  "runType": "single-public-x-video-smoke",
+  "sourceUrl": "https://x.com/Medeo_AI/status/2096996761935966521",
+  "attempted": 1,
+  "succeeded": 1,
+  "httpStatus": 200,
+  "durationSeconds": 38.684444,
+  "scenesDetected": 9,
+  "framesCreated": 27,
+  "contactSheetsCreated": 3,
+  "visionModel": "gemini-3.7-flash",
+  "visionHttpStatus": 200,
+  "visionScenesReturned": 9,
+  "medeoPromptCharacters": 176,
+  "cookiesUsed": false,
+  "filesRetained": 0,
+  "cleanupCompleted": true,
+  "failureReasons": []
+}

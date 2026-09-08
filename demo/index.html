@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>X Practice Copilot · Interactive Demo</title>
+  <style>
+    :root { color-scheme: light; --ink:#171714; --muted:#6e6b64; --paper:#ece9e1; --orange:#f35b2c; --line:#ded9cf; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; background:var(--paper); color:var(--ink); font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif; }
+    .demo-bar { height:50px; display:flex; align-items:center; justify-content:space-between; padding:0 22px; border-bottom:1px solid #d5d0c5; background:#f8f5ee; }
+    .demo-bar b { font-size:13px; letter-spacing:-.02em; }
+    .demo-bar span { border-radius:999px; background:#fff0c9; color:#775300; padding:5px 9px; font-size:10px; font-weight:800; }
+    .workspace { display:grid; grid-template-columns:minmax(560px,1fr) 390px; height:calc(100vh - 50px); max-width:1440px; margin:auto; background:#fff; }
+    .x-shell { overflow:auto; border-right:1px solid #d8d8d8; background:#fff; }
+    .x-nav { position:sticky; top:0; z-index:2; display:flex; align-items:center; justify-content:space-between; height:58px; padding:0 28px; border-bottom:1px solid #ececec; background:rgba(255,255,255,.94); backdrop-filter:blur(12px); }
+    .x-logo { font-size:27px; font-weight:900; }
+    .x-nav small { color:#6f6f6f; }
+    .feed { width:600px; max-width:100%; margin:auto; }
+    .tweet { padding:18px 20px 12px; border-bottom:1px solid #ececec; }
+    .author-row { display:grid; grid-template-columns:43px 1fr; gap:10px; }
+    .avatar { width:43px; height:43px; display:grid; place-items:center; border-radius:50%; background:linear-gradient(135deg,#1b1b1b,#555); color:#fff; font-weight:800; }
+    .author { font-size:14px; font-weight:800; }
+    .handle { color:#777; font-weight:500; }
+    .tweet-text { margin:8px 0 14px 53px; font-size:16px; line-height:1.5; }
+    .video { position:relative; height:270px; margin-left:53px; overflow:hidden; display:grid; place-items:center; border-radius:17px; background:radial-gradient(circle at 70% 20%,#864b39 0,transparent 30%),linear-gradient(140deg,#111 0%,#312923 60%,#b85b34 100%); color:#fff; }
+    .video:before { content:""; position:absolute; inset:18px; border:1px solid rgba(255,255,255,.22); border-radius:11px; }
+    .video-copy { position:relative; max-width:330px; padding:22px; text-align:center; }
+    .video-copy strong { display:block; font:800 29px/1.1 Georgia,serif; letter-spacing:-.04em; }
+    .video-copy em { display:inline-block; margin-top:13px; color:#ffb18e; font-style:normal; font-size:12px; letter-spacing:.1em; }
+    .social { display:flex; justify-content:space-between; margin:10px 0 0 53px; color:#777; font-size:12px; }
+    .copilot-actions { display:flex; flex-wrap:wrap; gap:7px; margin:12px 0 0 53px; padding-top:11px; border-top:1px solid #eee; }
+    .copilot-actions button { border:1px solid #d5d5d5; border-radius:999px; background:#fff; cursor:pointer; padding:8px 11px; color:#252525; font-size:12px; font-weight:750; transition:140ms ease; }
+    .copilot-actions button:hover, .copilot-actions button.active { border-color:var(--orange); background:#fff0e9; color:#a83d1a; transform:translateY(-1px); }
+    .copilot-actions i { margin-right:5px; color:var(--orange); font-style:normal; }
+    .hint { margin:18px 20px 0 73px; border-left:3px solid var(--orange); padding:9px 12px; background:#fff6f1; color:#80503d; font-size:12px; line-height:1.5; }
+    iframe { width:100%; height:100%; border:0; background:var(--paper); }
+    @media(max-width:850px) { .workspace { grid-template-columns:1fr; height:auto; } .x-shell { min-height:640px; border-right:0; } iframe { height:780px; border-top:1px solid #ddd; } }
+  </style>
+</head>
+<body>
+  <header class="demo-bar"><b>X Practice Copilot · 可交互 Demo</b><span>本地模拟 · 不会发布或上传</span></header>
+  <main class="workspace">
+    <section class="x-shell">
+      <div class="x-nav"><span class="x-logo">𝕏</span><b>为你推荐</b><small>模拟页面</small></div>
+      <div class="feed">
+        <article class="tweet">
+          <div class="author-row"><div class="avatar">AI</div><div><span class="author">AI Builder</span> <span class="handle">@ai_builder · 2h</span></div></div>
+          <p class="tweet-text">真正有用的 AI 评测，不是问模型会不会，而是给它一个 20 分钟的真实任务，看它留下了什么可复查的产物。</p>
+          <div class="video"><div class="video-copy"><strong>DON'T ASK.<br>GIVE IT A TASK.</strong><em>20 MINUTE AI TEST</em></div></div>
+          <div class="social"><span>♡ 48</span><span>↻ 12</span><span>◉ 8.3K</span><span>↗</span></div>
+          <div class="copilot-actions" aria-label="Copilot 演示入口">
+            <button data-action="comment" class="active"><i>✦</i>AI 评论</button>
+            <button data-action="inspiration"><i>⌁</i>收为灵感</button>
+            <button data-action="video"><i>▻</i>拆解视频</button>
+          </div>
+        </article>
+      <p class="hint">点击上面的三个入口，右侧工作台会切换到对应流程。视频由本机临时下载并截取代表帧。</p>
+      </div>
+    </section>
+    <iframe id="copilot" src="../src/sidepanel/index.html?demo=1" title="X Practice Copilot Side Panel"></iframe>
+  </main>
+  <script>
+    const frame = document.querySelector("#copilot");
+    document.querySelectorAll("[data-action]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll("[data-action]").forEach((item) => item.classList.toggle("active", item === button));
+        frame.contentWindow.postMessage({ type: "XPC_DEMO_ACTION", action: button.dataset.action }, location.origin);
+      });
+    });
+  </script>
+</body>
+</html>
