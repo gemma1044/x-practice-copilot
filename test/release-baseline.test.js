@@ -28,6 +28,6 @@ test("本机 Key 只从被忽略的 env 文件进入 bridge", () => {
   assert.match(gitignore, /^\.env$/mu);
   assert.match(example, /^OPENAI_API_KEY=$/mu);
   assert.match(example, /^OPENAI_BASE_URL=https:\/\/merouter\.play\.one2x\.ai\/v1$/mu);
-  assert.match(example, /^XPC_EXTENSION_ID=[a-p]{32}$/mu);
+  assert.match(example, /^XPC_EXTENSION_ID=$/mu);
   assert.match(packageJson.scripts.bridge, /--env-file-if-exists=\.env/u);
 });

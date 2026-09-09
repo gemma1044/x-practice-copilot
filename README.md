@@ -1,8 +1,8 @@
 # X Practice Copilot
 
-一个给 Gemma 单人使用的浏览器扩展项目：在浏览 X（Twitter）时，通过 Merouter 的 `deepseek_v4_flash` 辅助生成评论、沉淀灵感、设计真实小实践，并把视频拆解结果转成 Medeo 复刻提示词。当前业务数据保存在 Chrome Storage；个人飞书配置核验后才允许同步，始终禁止写入公司租户。
+一个开源的浏览器扩展：在浏览 X（Twitter）时，通过用户自己的 Merouter Key 辅助生成评论、沉淀灵感、设计真实小实践，并把视频拆解结果转成可复制的视频 Prompt。业务数据保存在 Chrome Storage；模型密钥只由本机 Bridge 读取，不进入扩展包。
 
-当前阶段：M1 已完成；M2–M3 的本机实现及 M5 的公开视频下载与本机截帧骨架已具备。扩展可直接以“加载已解压的扩展程序”运行；真实模型、个人飞书和视觉连接器仍需外部配置与验收。
+当前阶段：评论、灵感、公开视频下载、本机截帧与 Gemini 视觉分析均已接入；使用者需要自行安装本机依赖并配置 Merouter Key。
 
 `demo/` 只是交互预览，不是浏览器插件。运行 `npm run package:extension` 后生成的 `dist/x-practice-copilot-extension/` 才是交给 Chrome / Edge“加载已解压的扩展程序”的目录。
 
@@ -32,7 +32,7 @@ npm run package:extension
 
 1. 打开 Chrome 的 `chrome://extensions` 或 Edge 的 `edge://extensions`。
 2. 开启“开发者模式”，点击“加载已解压的扩展程序”。
-3. 选择生成目录：`/Users/gemma/Projects/x-practice-copilot/dist/x-practice-copilot-extension`。
+3. 选择仓库中的 `dist/x-practice-copilot-extension` 目录。
 4. 打开 `https://x.com`，在任一已渲染帖子的操作区点击“AI 评论 / 收为灵感 / 拆解视频”。
 
 开发时运行 `npm run dev:extension`，源码或 Manifest 变化会自动同步到上述目录；之后在扩展管理页点击刷新即可载入最新代码，无需再次手动打包。
@@ -53,10 +53,21 @@ npm test
 npm run test:browser
 ```
 
-## 启动本机文字 AI bridge
+## 配置本机 Bridge
 
-1. 打开项目根目录的 `.env`，只填写 `OPENAI_API_KEY`。该文件已被 Git 忽略；Base URL 和当前打包目录对应的扩展 ID 已预填。
-2. 启动 bridge：
+需要 Node.js 20+、`yt-dlp`、`ffmpeg` 和 `ffprobe`。macOS 可使用：
+
+```bash
+brew install yt-dlp ffmpeg
+```
+
+加载扩展后，在 `chrome://extensions` 复制它的 32 位扩展 ID，然后运行：
+
+```bash
+npm run setup:key -- <extension-id>
+```
+
+命令会隐藏输入并把 Merouter Key、固定 Base URL 和扩展 ID 保存到被 Git 忽略的 `.env`。随后启动 Bridge：
 
 ```bash
 npm run bridge
@@ -64,7 +75,7 @@ npm run bridge
 
 bridge 只监听 `127.0.0.1:4317`。启动后重新打开 Side Panel，状态会显示“AI 已连接”；缺少任一变量时只提供健康状态并拒绝模型请求。如果扩展不是从 README 所述打包目录加载，请把 `chrome://extensions` 显示的实际扩展 ID 写入 `XPC_EXTENSION_ID`。可用 `XPC_BRIDGE_PORT` 改端口，但同时需要同步修改扩展的 connector 与 host permission，当前不建议改动。
 
-当前开发机已通过 macOS LaunchAgent `ai.one2x.x-practice-copilot.bridge` 托管 bridge：登录时自动启动，异常退出后自动拉起。日志位于 `/Users/gemma/Library/Logs/XPracticeCopilot/`。Side Panel 在可见时每 5 秒刷新一次本机连接状态，bridge 恢复后无需重新打开面板。
+如需常驻运行，可使用系统服务管理器托管 `npm run bridge`。Side Panel 在可见时每 5 秒刷新本机连接状态，Bridge 恢复后无需重新打开面板。
 
 ## 连接器与密钥边界
 
@@ -74,10 +85,14 @@ bridge 只监听 `127.0.0.1:4317`。启动后重新打开 Side Panel，状态会
 - 视觉分析使用独立 `VisionAnalysisConnector`，经 Merouter 固定调用 `gemini-3.7-flash`，不交给 `deepseek_v4_flash` 假装识图。
 - 业务数据只有 `PracticeRepository` 一个入口。当前为本地开发适配器；个人飞书连接身份未确认前，`UnconfiguredPersonalFeishuRepository` 拒绝远程读写，禁止接入公司租户。
 - 本地状态统一保存在版本化的 `xpc_practice_state`；首次写入会迁移旧 `xpc_inspirations`。同步队列与业务实体同处这一状态，不形成第二条数据通道。
-- Medeo 只产出可复制的完整 prompt 框架，未调用 `/Users/gemma/Projects/medeo-video-skill`。
+- 当前只产出可复制的完整视频 Prompt，不会自动提交到第三方视频生成服务。
 
 ## 本机视频工具
 
 视频拆解依赖 `yt-dlp`、`ffmpeg` 和 `ffprobe`。bridge 会先检查工具是否存在；缺少时只提示安装，不会退回浏览器 Cookie 抓取。默认单任务串行、IPv4、请求间隔 1 秒、最多 5 分钟/250 MB；X 返回 429 后进入 15 分钟本机冷却，403 也会停止处理，不自动密集重试或轮换代理。
 
 实现入口和数据通道路标统一记录在 `CHANGELOG.md`。
+
+## License
+
+[MIT](LICENSE)

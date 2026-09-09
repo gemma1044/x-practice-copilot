@@ -184,7 +184,7 @@
           <details><summary>模型与密钥边界</summary><p>扩展不持有模型密钥。它通过本机回环地址安全桥接访问 Merouter 的 OpenAI-compatible 接口，固定 <code>OPENAI_BASE_URL=https://merouter.play.one2x.ai/v1</code>；文字模型为 <code>deepseek_v4_flash</code>，视觉模型为 <code>gemini-3.7-flash</code>。真实 <code>OPENAI_API_KEY</code> 仅从本机环境读取。桥接校验扩展来源并限制模型、请求大小和能力。</p></details>
           <details><summary>飞书多维表格连接</summary><p>同一本地桥接负责读写个人账号下的独立 Base，避免把飞书凭证放进扩展包。创建或写入前必须核验当前 user 身份属于个人账号；公司租户一律拒绝。按来源链接和关联灵感 upsert；Base 不可用时进入本地待同步队列。</p></details>
           <details><summary>视频 MVP</summary><p>扩展把当前公开帖子 URL 交给本机 bridge，使用 yt-dlp 串行临时下载；FFmpeg 识别镜头切换，每个场景在约 1/6、1/2、5/6 处截 3 帧，每 3 个连续场景合成一张九宫格。最多保留 15 个场景、5 张九宫格。默认不读取登录 Cookie；任务结束即删除原视频和单帧。批量抓取、代理轮换、标签页录制、音频分析全部后置。</p></details>
-          <details><summary>Medeo 连接</summary><p>本机已存在 <code>/Users/gemma/Projects/medeo-video-skill</code>，支持上传 <code>.jpg/.png/.webp/.mp4/.mov/.gif</code>，以及把完整故事放入一次生成调用。MVP 先输出并复制完整 prompt；自动调用时通过本地桥接执行异步任务，展示结果而不暴露密钥。</p></details>
+          <details><summary>视频生成连接</summary><p>MVP 只输出并复制完整 Prompt，不自动调用第三方视频生成服务；未来如需接入，应继续通过本地 Bridge 执行并避免在扩展中暴露密钥。</p></details>
           <details><summary>平台与合规风险</summary><p>X 页面结构、登录态与媒体 URL 会变化；扩展应限制到用户主动操作，不绕过访问控制，不批量抓取或自动发布。是否允许发布到 Chrome Web Store，以及目标浏览器是否只有 Chrome，需要在进入实现前确认。</p></details>
         </section>
 

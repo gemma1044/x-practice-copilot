@@ -2,6 +2,12 @@
 
 本文件是 X Practice Copilot 的唯一实现变更入口；每轮同时登记唯一用户入口与数据通道路标。
 
+## 2026-09-09 · MIT 开源准备
+
+- 新增 MIT License，README 改为面向公开使用者的安装、BYOK 与本机 Bridge 说明。
+- 移除文档中的个人绝对路径和写死的开发机扩展 ID；`npm run setup:key -- <extension-id>` 现在要求使用者传入自己安装后得到的扩展 ID。
+- 公开前扫描当前文件与全部 Git 历史：未发现曾提交的 `.env`、私钥或常见格式 API Key；唯一插件入口与本机 Bridge 数据通道不变。
+
 ## 2026-09-08 · Gemini 单一 Prompt 输出
 
 - 唯一 `/v1/vision/analyze` 请求继续让 Gemini 在内部结合每个 clip 的三帧与本机时间映射分析，但响应不再返回 `clips` 或 `structure`，只返回模型识别信息和一份含完整时间轴的 Prompt。

@@ -3,7 +3,12 @@ import path from "node:path";
 
 const outputPath = path.resolve(".env");
 const baseUrl = "https://merouter.play.one2x.ai/v1";
-const extensionId = "jbfkkddfjkpijkcefflefbaldjojanko";
+const extensionId = String(process.argv[2] || "").trim();
+
+if (!/^[a-p]{32}$/u.test(extensionId)) {
+  console.error("请传入 chrome://extensions 显示的 32 位扩展 ID：npm run setup:key -- <extension-id>");
+  process.exit(1);
+}
 
 if (!process.stdin.isTTY) {
   console.error("请在交互式终端运行 npm run setup:key");
