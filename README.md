@@ -1,8 +1,8 @@
 # X Practice Copilot
 
-一个开源的浏览器扩展：在浏览 X（Twitter）时，通过用户自己的 Merouter Key 辅助生成评论、沉淀灵感、设计真实小实践，并把视频拆解结果转成可复制的视频 Prompt。业务数据保存在 Chrome Storage；模型密钥只由本机 Bridge 读取，不进入扩展包。
+一个开源的浏览器扩展：在浏览 X（Twitter）时，通过用户自己的 OpenAI-compatible API Key 辅助生成评论、沉淀灵感、设计真实小实践，并把视频拆解结果转成可复制的视频 Prompt。业务数据保存在 Chrome Storage；模型密钥只由本机 Bridge 读取，不进入扩展包。
 
-当前阶段：评论、灵感、公开视频下载、本机截帧与 Gemini 视觉分析均已接入；使用者需要自行安装本机依赖并配置 Merouter Key。
+当前阶段：评论、灵感、公开视频下载、本机截帧与 Gemini 视觉分析均已接入；使用者需要自行安装本机依赖并配置 API Key。
 
 `demo/` 只是交互预览，不是浏览器插件。运行 `npm run package:extension` 后生成的 `dist/x-practice-copilot-extension/` 才是交给 Chrome / Edge“加载已解压的扩展程序”的目录。
 
@@ -37,7 +37,7 @@ npm run package:extension
 
 开发时运行 `npm run dev:extension`，源码或 Manifest 变化会自动同步到上述目录；之后在扩展管理页点击刷新即可载入最新代码，无需再次手动打包。
 
-扩展不会自动发布评论。真实 AI 未配置时会明确显示未配置；灵感只写入浏览器 `chrome.storage.local`。视频 MVP 只处理用户主动确认的单条公开视频：本机 `yt-dlp` 临时下载，FFmpeg 识别场景并在每个场景均匀截取早、中、晚 3 帧，每 3 个场景合成一张九宫格；用户确认后由 Merouter `gemini-3.7-flash` 分析。原视频和单帧不上传且处理后立即清理；默认不读取登录 Cookie，不批量抓取。
+扩展不会自动发布评论。真实 AI 未配置时会明确显示未配置；灵感只写入浏览器 `chrome.storage.local`。视频 MVP 只处理用户主动确认的单条公开视频：本机 `yt-dlp` 临时下载，FFmpeg 识别场景并在每个场景均匀截取早、中、晚 3 帧，每 3 个场景合成一张九宫格；用户确认后由 `gemini-3.7-flash` 分析。原视频和单帧不上传且处理后立即清理；默认不读取登录 Cookie，不批量抓取。
 
 ## 测试
 
@@ -67,7 +67,7 @@ brew install yt-dlp ffmpeg
 npm run setup:key -- <extension-id>
 ```
 
-命令会隐藏输入并把 Merouter Key、固定 Base URL 和扩展 ID 保存到被 Git 忽略的 `.env`。随后启动 Bridge：
+命令会隐藏输入并把 API Key、Base URL 和扩展 ID 保存到被 Git 忽略的 `.env`。随后启动 Bridge：
 
 ```bash
 npm run bridge
@@ -79,10 +79,10 @@ bridge 只监听 `127.0.0.1:4317`。启动后重新打开 Side Panel，状态会
 
 ## 连接器与密钥边界
 
-- 文字能力入口为 `TextGenerationConnector`，目标是由本机安全桥接通过 OpenAI-compatible 接口访问 Merouter `deepseek_v4_flash`。
-- 本机既有约定使用 `OPENAI_API_KEY` 与 `OPENAI_BASE_URL=https://merouter.play.one2x.ai/v1`。真实 key 只能由本机桥接环境读取，不能写入扩展包、源码或提交记录。
+- 文字能力入口为 `TextGenerationConnector`，由本机安全桥接通过 OpenAI-compatible 接口访问 `deepseek_v4_flash`。
+- 模型网关通过 `.env` 中的 `OPENAI_API_KEY` 与 `OPENAI_BASE_URL` 配置。真实 Key 只能由本机 Bridge 读取，不能写入扩展包、源码或提交记录。
 - 本机桥接已提供 `/health`、`/v1/text/comments`、`/v1/text/inspiration`、`/v1/video/frames` 与 `/v1/vision/analyze`；模型返回会经过结构校验，未配置、超时或异常时不会用本地模板伪装成功。
-- 视觉分析使用独立 `VisionAnalysisConnector`，经 Merouter 固定调用 `gemini-3.7-flash`，不交给 `deepseek_v4_flash` 假装识图。
+- 视觉分析使用独立 `VisionAnalysisConnector` 调用 `gemini-3.7-flash`，不交给文字模型假装识图。
 - 业务数据只有 `PracticeRepository` 一个入口。当前为本地开发适配器；个人飞书连接身份未确认前，`UnconfiguredPersonalFeishuRepository` 拒绝远程读写，禁止接入公司租户。
 - 本地状态统一保存在版本化的 `xpc_practice_state`；首次写入会迁移旧 `xpc_inspirations`。同步队列与业务实体同处这一状态，不形成第二条数据通道。
 - 当前只产出可复制的完整视频 Prompt，不会自动提交到第三方视频生成服务。

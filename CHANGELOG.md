@@ -2,6 +2,11 @@
 
 本文件是 X Practice Copilot 的唯一实现变更入口；每轮同时登记唯一用户入口与数据通道路标。
 
+## 2026-09-09 · 公开仓库密钥复核
+
+- 扫描当前分支和完整 Git 历史，未发现曾提交的 `.env`、私钥、GitHub Token、OpenAI/Google/AWS 常见格式密钥；代码中的动态环境变量读取和空值测试属于安全扫描误报。
+- README 删除特定模型网关的品牌名与域名，只保留通用的 OpenAI-compatible BYOK 配置说明；真实 Key 仍只进入被 Git 忽略的本机 `.env`。
+
 ## 2026-09-09 · MIT 开源准备
 
 - 新增 MIT License，README 改为面向公开使用者的安装、BYOK 与本机 Bridge 说明。
