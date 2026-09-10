@@ -55,6 +55,7 @@ function tweet(index) {
       <div data-testid="tweetText">第 ${index} 条用于扩展真机壳验收的帖子。</div>
       <a href="/quoted/status/${200000 + index}">引用</a>
       <a href="/author_${index}/status/${100000 + index}"><time>时间</time></a>
+      ${index === 10 ? '<div data-testid="videoPlayer"><button aria-label="播放">播放</button></div>' : ""}
       <div role="group"><button data-testid="reply">回复</button></div>
     </${tag}>`;
 }
@@ -128,6 +129,7 @@ test("MV3 真机壳在十帖、刷新与站内换页后保持单一入口和正�
     }));
     assert.equal(stored.xpc_current_context.url, `https://x.com/author_${action.postIndex}/status/${100000 + action.postIndex}`);
     assert.equal(stored.xpc_current_context.text, `第 ${action.postIndex} 条用于扩展真机壳验收的帖子。`);
+    if (action.mode === "video") assert.equal(stored.xpc_current_context.media.hasVideo, true);
   }
   assert.equal(await page.evaluate(() => globalThis.replyClicks), 0);
 

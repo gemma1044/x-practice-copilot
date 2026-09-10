@@ -9,6 +9,14 @@
     return String(value || "").replace(/\s+/g, " ").trim();
   }
 
+  function hasVideoMedia(postRoot) {
+    return Boolean(postRoot.querySelector([
+      "video",
+      '[data-testid="videoPlayer"]',
+      '[data-testid="videoComponent"]'
+    ].join(",")));
+  }
+
   function statusUrl(postRoot) {
     const anchors = [...postRoot.querySelectorAll('a[href*="/status/"]')];
     const timestampAnchor = anchors.find((anchor) => anchor.querySelector("time"));
@@ -35,7 +43,7 @@
       capturedAt: new Date().toISOString(),
       contextScope: textNodes.length > 1 ? "当前帖子及可见引用" : "仅当前可见帖子",
       media: {
-        hasVideo: Boolean(postRoot.querySelector("video")),
+        hasVideo: hasVideoMedia(postRoot),
         imageCount: postRoot.querySelectorAll('[data-testid="tweetPhoto"] img').length
       }
     };

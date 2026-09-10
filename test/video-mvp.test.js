@@ -4,6 +4,7 @@ import fs from "node:fs";
 
 test("视频 MVP 只从当前帖子进入本机下载与截帧", () => {
   const html = fs.readFileSync(new URL("../src/sidepanel/index.html", import.meta.url), "utf8");
+  const script = fs.readFileSync(new URL("../src/sidepanel/sidepanel.js", import.meta.url), "utf8");
   const videoPanel = html.match(/data-panel="video"[\s\S]*?<div class="toast"/u)?.[0] || "";
   assert.doesNotMatch(videoPanel, /video\/mp4|MP4|MOV/u);
   assert.match(videoPanel, /下载并本地截帧/u);
@@ -22,4 +23,6 @@ test("视频 MVP 只从当前帖子进入本机下载与截帧", () => {
   assert.match(html, /复制复刻 Prompt/u);
   assert.doesNotMatch(html, /id="copy-medeo"|id="output-shell"/u);
   assert.doesNotMatch(videoPanel, /action-with-help/u);
+  assert.doesNotMatch(script, /if \(!state\.context\.media\?\.hasVideo\)/u);
+  assert.doesNotMatch(script, /当前帖子没有检测到可处理的视频/u);
 });

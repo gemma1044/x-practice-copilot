@@ -460,7 +460,6 @@ $("#build-evidence-draft").addEventListener("click", async () => {
 
 $("#prepare-video").addEventListener("click", async () => {
   if (!state.context?.url) return showToast("请先从一条 X 帖子打开侧栏。 ");
-  if (!state.context.media?.hasVideo) return showToast("当前帖子没有检测到可处理的视频。 ");
   const action = beginAction("prepare-video", { sourceUrl: state.context.url });
   if (!action) return;
   let successful = false;
